@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# The customer's own returns and where each one has got to (Part I §12, §2.6).
+
+   The status is shown in the customer's language rather than as a workflow
+   code — "under inspection" means something to a shopper; UNDER_INSPECTION
+   does not.
+#}
+
+{% block title %}{{ t("returns.mine") }} — {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <div class="mx-auto max-w-3xl space-y-4">
+
+    <h1>{{ t("returns.mine") }}</h1>
+
+    {% if flash == "submitted" %}
+      <div class="flex items-start gap-2 rounded-card border border-success-100 bg-success-50
+                  p-4 text-sm text-success-700" role="status">
+        {{ icon.check_circle(class="h-5 w-5 shrink-0") }}
+        <p>{{ t("returns.submitted_notice") }}</p>
+      </div>
+    {% elif flash == "withdrawn" %}
+      <div class="rounded-card border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600"
+           role="status">
+        {{ t("returns.withdrawn_notice") }}
+      </div>
+    {% endif %}
+
+    {% if returns %}
+      <div class="space-y-3">
+        {% for row in returns %}
+          {% set order = orders.get(row.fk_order_id) %}
+          <article class="card p-5">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="text-base font-semibold text-navy-900" dir="ltr">
+                {{ row.return_number }}
+              </h2>
+              {% set tone = {"requested":"badge-neutral","under_inspection":"badge-warning",
+                             "approved":"badge-success","rejected":"badge-danger",
+                             "refunded":"badge-success","withdrawn":"badge-neutral"} %}
+              <span class="{{ tone.get(row.status, 'badge-neutral') }}">
+                {{ t("returns.status_" ~ row.status) }}
+              </span>
+              {% if order %}
+                <a href="/account/orders" class="ms-auto text-xs link" dir="ltr">
+                  {{ order.order_number }}
+                </a>
+              {% endif %}
+            </div>
+
+            <dl class="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+              <div>
+                <dt class="text-xs text-neutral-500">{{ t("returns.reason") }}</dt>
+                <dd>{{ t("returns.reason_" ~ row.reason_code) }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs text-neutral-500">{{ t("returns.refund_amount") }}</dt>
+                <dd class="price">{{ money(row.refund_amt) }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs text-neutral-500">{{ t("returns.items") }}</dt>
+                <dd class="tabular">{{ num(lines_for.get(row.pk_order_return_id, []) | length) }}</dd>
+              </div>
+            </dl>
+
+            {% if row.status == "refunded" and row.refunded_dt %}
+              <p class="mt-3 text-sm text-success-700">
+                {{ t("returns.refunded_on", date=date(row.refunded_dt)) }}
+                &mdash;
+                {{ t("returns.refunded_to_credit") if row.refund_destination == "store_credit"
+                   else t("returns.refunded_to_cash") }}
+              </p>
+            {% elif row.status == "rejected" and row.inspection_note %}
+              <p class="mt-3 text-sm text-neutral-600">{{ row.inspection_note }}</p>
+            {% elif row.status == "requested" %}
+              {# Withdrawable only until staff have looked at it. #}
+              <form method="post" action="/account/returns/{{ row.return_number }}/cancel"
+                    class="mt-3">
+                <button type="submit" class="btn-outline btn-sm">
+                  {{ t("returns.withdraw") }}
+                </button>
+              </form>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="state-panel">
+        {{ icon.package(class="h-10 w-10 text-neutral-300") }}
+        <p class="state-panel__title">{{ t("returns.none_yet") }}</p>
+        <p class="state-panel__body">{{ t("returns.none_yet_hint") }}</p>
+        <a href="/account/orders" class="btn-secondary btn-sm mt-2">{{ t("header.orders") }}</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

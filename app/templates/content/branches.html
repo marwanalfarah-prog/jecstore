@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("branch.title") }} - {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <h1>{{ t("branch.title") }}</h1>
+
+  {% if branches %}
+    <div class="mt-6 grid gap-4 lg:grid-cols-2">
+      {% for branch in branches %}
+        <article class="card p-5">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h2 class="text-xl">{{ localized(branch) }}</h2>
+              {% set address = localized(branch, "address") %}
+              {% if address %}
+                <p class="mt-2 flex items-start gap-2 text-sm text-neutral-600">
+                  {{ icon.pin(class="mt-0.5 h-4 w-4 shrink-0 text-neutral-400") }}
+                  <span>{{ address }}</span>
+                </p>
+              {% endif %}
+            </div>
+            {% if branch.is_pickup_point_flag %}
+              <span class="badge-success">{{ t("branch.pickup") }}</span>
+            {% endif %}
+          </div>
+
+          <div class="mt-5 flex flex-wrap gap-2">
+            {% if branch.phone_number %}
+              <a href="tel:{{ branch.phone_country_code }}{{ branch.phone_number }}"
+                 class="btn-outline btn-sm">
+                {{ icon.phone(class="h-4 w-4") }}
+                <span dir="ltr">{{ branch.phone_country_code }} {{ branch.phone_number }}</span>
+              </a>
+            {% endif %}
+            {% if branch.latitude and branch.longitude %}
+              <a href="https://www.google.com/maps/dir/?api=1&destination={{ branch.latitude }},{{ branch.longitude }}"
+                 rel="noopener" target="_blank" class="btn-secondary btn-sm">
+                {{ icon.pin(class="h-4 w-4") }} {{ t("branch.directions") }}
+              </a>
+            {% endif %}
+          </div>
+
+          {% if branch.hours %}
+            <div class="mt-5 border-t border-neutral-200 pt-4">
+              <h3 class="text-base">{{ t("branch.hours") }}</h3>
+              <dl class="mt-3 grid gap-2 text-sm">
+                {% for row in branch.hours|sort(attribute="weekday") %}
+                  <div class="flex justify-between gap-4">
+                    <dt class="text-neutral-600">{{ t("branch.weekday_" ~ row.weekday) }}</dt>
+                    <dd class="font-medium text-neutral-800">
+                      {% if row.is_closed_flag %}
+                        {{ t("branch.closed") }}
+                      {% else %}
+                        <span dir="ltr">{{ row.opens_at }} - {{ row.closes_at }}</span>
+                      {% endif %}
+                    </dd>
+                  </div>
+                {% endfor %}
+              </dl>
+            </div>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="state-panel mt-6">
+      {{ icon.pin(class="h-10 w-10 text-neutral-300") }}
+      <p class="state-panel__title">{{ t("branch.empty") }}</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

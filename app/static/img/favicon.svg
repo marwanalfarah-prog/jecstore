@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- Placeholder favicon. Replace with the real JECStoreLogo mark (Part I §1);
+       it mirrors app/templates/partials/logo.html, so update both together. -->
+  <rect width="48" height="48" rx="10" fill="#2C3446"/>
+  <path d="M9 15.5c4.6-1.6 9.1-1.6 13.6 0v19c-4.5-1.6-9-1.6-13.6 0v-19Z" fill="#E63950"/>
+  <path d="M39 15.5c-4.6-1.6-9.1-1.6-13.6 0v19c4.5-1.6 9-1.6 13.6 0v-19Z" fill="#F96A81"/>
+  <circle cx="24" cy="11" r="3.2" fill="#F5C518"/>
+  <rect x="21.4" y="15.5" width="5.2" height="19" rx="1.2" fill="#3E7CB1"/>
+</svg>

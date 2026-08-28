@@ -1,0 +1,31 @@
+{% import "partials/icons.html" as icon %}
+<div class="card overflow-hidden shadow-dropdown">
+  {% if suggestions %}
+    <ul class="divide-y divide-neutral-200">
+      {% for product in suggestions %}
+        <li>
+          <a href="{{ product_url(product) }}" class="flex items-center gap-3 p-3 hover:bg-neutral-50">
+            <span class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded bg-neutral-50 text-neutral-300">
+              {% if product.main_image_path %}
+                <img src="{{ media(product.main_image_path) }}" alt=""
+                     class="h-full w-full object-contain p-1" loading="lazy">
+              {% else %}
+                {{ icon.package(class="h-5 w-5") }}
+              {% endif %}
+            </span>
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-semibold text-navy-900">
+                {{ localized(product) }}
+              </span>
+              {% if product.publisher %}
+                <span class="block truncate text-xs text-neutral-500">{{ localized(product.publisher) }}</span>
+              {% endif %}
+            </span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="p-3 text-sm text-neutral-500">{{ t("search.no_suggestions") }}</p>
+  {% endif %}
+</div>

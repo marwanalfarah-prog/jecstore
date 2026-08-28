@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("account.dashboard") }} - {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  {% include "account/_nav.html" %}
+
+  <h1>{{ t("account.dashboard") }}</h1>
+
+  {% if flash == "verification_sent" %}
+    <div class="mt-4 flex items-start gap-2 rounded-card border border-success-100
+                bg-success-50 p-3 text-sm text-success-700" role="status">
+      {{ icon.mail(class="h-4 w-4 shrink-0") }}
+      <p>{{ t("account.verification_sent") }}</p>
+    </div>
+  {% endif %}
+
+  <div class="mt-6 grid gap-4 lg:grid-cols-3">
+    <section class="card p-5">
+      <h2 class="text-lg">{{ t("account.profile") }}</h2>
+      <p class="mt-3 font-semibold text-navy-900">{{ user.username }}</p>
+      <p class="text-sm text-neutral-500">{{ user.email }}</p>
+      <p class="mt-3">
+        {% if user.email_verified_flag %}
+          <span class="badge-success">{{ t("account.verified") }}</span>
+        {% else %}
+          <span class="badge-warning">{{ t("auth.not_verified") }}</span>
+        {% endif %}
+      </p>
+      {% if not user.email_verified_flag %}
+        {# §2.5: an unverified account cannot check out, so the way out of that
+           state belongs next to the badge that reports it. #}
+        <form method="post" action="/account/resend-verification" class="mt-3">
+          <button type="submit" class="btn-outline btn-sm">
+            {{ t("account.resend_verification") }}
+          </button>
+        </form>
+      {% endif %}
+      <a href="/account/profile" class="btn-outline btn-sm mt-4">{{ t("common.edit") }}</a>
+    </section>
+
+    {# §2.6 lists the رصيد balance among what a customer sees about themselves. #}
+    <section class="card p-5">
+      <h2 class="text-lg">{{ t("account.store_credit") }}</h2>
+      <p class="mt-3 text-3xl font-bold text-primary-700">{{ money(store_credit) }}</p>
+      <p class="mt-1 text-xs text-neutral-500">{{ t("account.store_credit_hint") }}</p>
+    </section>
+
+    <section class="card p-5">
+      <h2 class="text-lg">{{ t("account.newsletter") }}</h2>
+      <p class="mt-3 text-sm text-neutral-600">
+        {{ t("account.newsletter_subscribed" if newsletter_active else "account.newsletter_unsubscribed") }}
+      </p>
+      <a href="/account/newsletter" class="btn-outline btn-sm mt-4">{{ t("common.save") }}</a>
+    </section>
+
+    <section class="card p-5">
+      <h2 class="text-lg">{{ t("header.wishlist") }}</h2>
+      <p class="mt-3 text-3xl font-bold text-primary-700">{{ num(wishlist_total) }}</p>
+      <a href="/account/wishlist" class="btn-outline btn-sm mt-4">{{ t("header.wishlist") }}</a>
+    </section>
+  </div>
+
+  <section class="mt-8">
+    <div class="flex items-center justify-between gap-3">
+      <h2>{{ t("account.recent_orders") }}</h2>
+      <div class="flex items-center gap-4">
+        <a href="/account/returns" class="link text-sm font-semibold">{{ t("returns.mine") }}</a>
+        <a href="/account/orders" class="link text-sm font-semibold">{{ t("header.orders") }}</a>
+      </div>
+    </div>
+
+    {% if orders %}
+      <div class="mt-4 space-y-3">
+        {% for order in orders %}
+          <a href="/orders/track?order_number={{ order.order_number }}"
+             class="card flex flex-wrap items-center justify-between gap-3 p-4 hover:border-primary-200">
+            <span>
+              <span class="block font-semibold text-navy-900">{{ order.order_number }}</span>
+              <span class="text-sm text-neutral-500">{{ datetime(order.placed_dt) }}</span>
+            </span>
+            <span class="text-end">
+              <span class="block price">{{ money(order.total_amt) }}</span>
+              <span class="badge-neutral">{{ t("orders.status_" ~ order.status) }}</span>
+            </span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="state-panel mt-4">
+        {{ icon.receipt(class="h-10 w-10 text-neutral-300") }}
+        <p class="state-panel__title">{{ t("account.empty_orders") }}</p>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

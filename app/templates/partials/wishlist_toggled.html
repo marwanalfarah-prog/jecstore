@@ -1,0 +1,9 @@
+{# The response to a wishlist toggle: everything on the page that just changed.
+
+   Two out-of-band swaps, because a toggle changes two things and returning
+   only one of them leaves the other lying. The badge is the count in the
+   header; the button is the control the shopper actually pressed, which has to
+   stop saying "Add to wishlist" once the item is on the list.
+#}
+{% include "partials/wishlist_indicator.html" %}
+{% include "partials/wishlist_button.html" %}

@@ -1,0 +1,275 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Homepage builder (Part I §4): "Section ordering/drag-and-drop — Admin
+   rearranges without a developer."
+
+   Drag uses native HTML5 events, so there is no extra library. The order is
+   saved by POSTing the full list, and a no-JS fallback keeps up/down buttons
+   working — a shop manager on a tablet should never be locked out of reordering.
+#}
+
+{% block title %}{{ t("admin.content") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4"
+     x-data="{
+       dragging: null,
+       open: null,
+       creating: false,
+       autoKinds: {{ auto_kinds | list | tojson | forceescape }},
+       drop(target) {
+         if (this.dragging === null || this.dragging === target) return;
+         const list = [...this.$refs.list.querySelectorAll('[data-section-id]')];
+         const ids = list.map(el => Number(el.dataset.sectionId));
+         const from = ids.indexOf(this.dragging);
+         const to = ids.indexOf(target);
+         ids.splice(to, 0, ids.splice(from, 1)[0]);
+         fetch('/admin/content/homepage/reorder', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ order: ids })
+         }).then(() => window.location.reload());
+       }
+     }">
+
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="text-base font-semibold text-navy-900">{{ t("content.homepage") }}</h2>
+    <nav class="flex gap-1 text-sm">
+      <a href="/admin/content/announcements" class="btn-ghost btn-sm">{{ t("content.announcements") }}</a>
+      <a href="/admin/content/settings" class="btn-ghost btn-sm">{{ t("content.settings") }}</a>
+      <a href="/admin/content/emails" class="btn-ghost btn-sm">{{ t("content.emails") }}</a>
+      <a href="/admin/content/shipping" class="btn-ghost btn-sm">{{ t("content.shipping") }}</a>
+    </nav>
+    <button type="button" class="btn-primary btn-sm ms-auto" @click="creating = !creating">
+      {{ icon.plus(class="h-4 w-4") }} {{ t("content.add_section") }}
+    </button>
+  </div>
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("admin.content"), subtitle = t("content.homepage_purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  {# --- New section ---------------------------------------------------- #}
+  <section class="admin-panel" x-show="creating" x-cloak>
+    <div class="admin-panel__head">
+      <h3 class="admin-panel__title">{{ t("content.add_section") }}</h3>
+    </div>
+    <form method="post" action="/admin/content/homepage/sections"
+          class="admin-panel__body grid gap-3 sm:grid-cols-3"
+          x-data="{ kind: 'banner' }">
+      <div>
+        <label for="section_kind" class="field-label">{{ t("content.section_type") }}</label>
+        <select id="section_kind" name="section_kind" x-model="kind"
+                class="input h-9 min-h-0 py-0 text-sm">
+          {% for kind in section_kinds %}
+            <option value="{{ kind }}">{{ t("content.kind_" ~ kind) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="new_title_ar" class="field-label">{{ t("content.title_ar") }}</label>
+        <input id="new_title_ar" name="title_ar" type="text" class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+      <div>
+        <label for="new_title_en" class="field-label">{{ t("content.title_en") }}</label>
+        <input id="new_title_en" name="title_en" type="text" dir="ltr"
+               class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+
+      {# Auto-populating carousels can be scoped to a category — that is how the
+         old site's per-category tabs are reproduced (§4). #}
+      <div>
+        <label for="new_category" class="field-label">{{ t("content.scope_category") }}</label>
+        <select id="new_category" name="category_id" class="input h-9 min-h-0 py-0 text-sm">
+          <option value="">{{ t("content.whole_store") }}</option>
+          {% for category in categories %}
+            <option value="{{ category.pk_category_id }}">{{ localized(category) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="new_limit" class="field-label">{{ t("content.item_limit") }}</label>
+        <input id="new_limit" name="item_limit" type="number" min="1" max="48" value="12"
+               class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+      <label class="flex items-end gap-2 pb-1 text-sm">
+        <input type="checkbox" name="is_enabled" value="1" checked
+               class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+        {{ t("content.enabled") }}
+      </label>
+
+      {# Scheduling: auto-activate and auto-expire without a developer (§4). #}
+      <div>
+        <label for="new_starts" class="field-label">{{ t("content.starts") }}</label>
+        <input id="new_starts" name="starts_dt" type="datetime-local"
+               class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+      <div>
+        <label for="new_ends" class="field-label">{{ t("content.ends") }}</label>
+        <input id="new_ends" name="ends_dt" type="datetime-local"
+               class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+      <div class="flex items-end">
+        <button type="submit" class="btn-primary btn-sm">{{ t("content.add_section") }}</button>
+      </div>
+    </form>
+  </section>
+
+  {# --- Section list, draggable --------------------------------------- #}
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h3 class="admin-panel__title">{{ t("content.sections") }}</h3>
+      <span class="ms-auto text-xs text-neutral-500">{{ t("content.drag_hint") }}</span>
+    </div>
+
+    {% if sections %}
+      <div class="admin-panel__body space-y-2" x-ref="list">
+        {% for section in sections %}
+          <div data-section-id="{{ section.pk_homepage_section_id }}"
+               draggable="true"
+               @dragstart="dragging = {{ section.pk_homepage_section_id }}"
+               @dragover.prevent
+               @drop.prevent="drop({{ section.pk_homepage_section_id }})"
+               class="rounded-control border border-neutral-200 bg-white transition
+                      hover:border-neutral-300"
+               :class="dragging === {{ section.pk_homepage_section_id }} && 'opacity-50'">
+
+            <div class="flex flex-wrap items-center gap-2 p-3">
+              <span class="cursor-grab text-neutral-400" aria-hidden="true">
+                {{ icon.list(class="h-4 w-4") }}
+              </span>
+              <span class="text-sm font-medium text-navy-900">
+                {{ localized(section, "title") or t("content.kind_" ~ section.section_kind) }}
+              </span>
+              <span class="badge-neutral">{{ t("content.kind_" ~ section.section_kind) }}</span>
+
+              {% if section.section_kind in auto_kinds %}
+                <span class="badge-success">{{ t("content.auto") }}</span>
+              {% endif %}
+              {% if not section.is_enabled_flag %}
+                <span class="badge-neutral">{{ t("content.disabled") }}</span>
+              {% elif section.starts_dt or section.ends_dt %}
+                <span class="badge-warning">{{ t("content.scheduled") }}</span>
+              {% endif %}
+
+              <div class="ms-auto flex items-center gap-1">
+                <button type="button" class="btn-ghost btn-sm"
+                        @click="open = open === {{ section.pk_homepage_section_id }}
+                                       ? null : {{ section.pk_homepage_section_id }}">
+                  {{ t("content.edit") }}
+                </button>
+                <form method="post"
+                      action="/admin/content/homepage/sections/{{ section.pk_homepage_section_id }}/remove" data-confirm="{{ t('content.confirm_remove_section') }}">
+                  <button type="submit" class="btn-ghost btn-sm text-danger-600">
+                    {{ t("content.remove") }}
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <div x-show="open === {{ section.pk_homepage_section_id }}" x-cloak
+                 class="border-t border-neutral-200 p-3">
+              <form method="post"
+                    action="/admin/content/homepage/sections/{{ section.pk_homepage_section_id }}"
+                    class="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label class="field-label">{{ t("content.title_ar") }}</label>
+                  <input name="title_ar" type="text" value="{{ section.title_ar or '' }}"
+                         class="input h-9 min-h-0 py-0 text-sm">
+                </div>
+                <div>
+                  <label class="field-label">{{ t("content.title_en") }}</label>
+                  <input name="title_en" type="text" dir="ltr" value="{{ section.title_en or '' }}"
+                         class="input h-9 min-h-0 py-0 text-sm">
+                </div>
+                <div>
+                  <label class="field-label">{{ t("content.item_limit") }}</label>
+                  <input name="item_limit" type="number" min="1" max="48"
+                         value="{{ section.item_limit }}"
+                         class="input h-9 min-h-0 py-0 text-sm">
+                </div>
+                <div>
+                  <label class="field-label">{{ t("content.scope_category") }}</label>
+                  <select name="category_id" class="input h-9 min-h-0 py-0 text-sm">
+                    <option value="">{{ t("content.whole_store") }}</option>
+                    {% for category in categories %}
+                      <option value="{{ category.pk_category_id }}"
+                        {% if section.fk_category_id == category.pk_category_id %}selected{% endif %}>
+                        {{ localized(category) }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div>
+                  <label class="field-label">{{ t("content.starts") }}</label>
+                  <input name="starts_dt" type="datetime-local"
+                         class="input h-9 min-h-0 py-0 text-sm">
+                </div>
+                <div>
+                  <label class="field-label">{{ t("content.ends") }}</label>
+                  <input name="ends_dt" type="datetime-local"
+                         class="input h-9 min-h-0 py-0 text-sm">
+                </div>
+                <label class="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="is_enabled" value="1"
+                         {% if section.is_enabled_flag %}checked{% endif %}
+                         class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                  {{ t("content.enabled") }}
+                </label>
+                <div class="sm:col-span-2 flex items-end justify-end">
+                  <button type="submit" class="btn-primary btn-sm">{{ t("common.save") }}</button>
+                </div>
+              </form>
+
+              {# Curated picks — only for sections that do not populate
+                 themselves ("our picks for you", §4). #}
+              {% if section.section_kind not in auto_kinds %}
+                <form method="post"
+                      action="/admin/content/homepage/sections/{{ section.pk_homepage_section_id }}/items"
+                      class="mt-4 border-t border-neutral-100 pt-3">
+                  <label class="field-label">{{ t("content.curated_items") }}</label>
+                  {% set chosen = curated.get(section.pk_homepage_section_id, [])
+                                  | map(attribute="fk_product_id") | list %}
+                  <select name="product_id" multiple size="6"
+                          class="input min-h-0 py-1 text-sm">
+                    {% for product in products %}
+                      <option value="{{ product.pk_product_id }}"
+                        {% if product.pk_product_id in chosen %}selected{% endif %}>
+                        {{ localized(product) }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn-outline btn-sm mt-2">{{ t("common.save") }}</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      {# No-JS fallback: submit the visible order explicitly. #}
+      <noscript>
+        <form method="post" action="/admin/content/homepage/reorder"
+              class="admin-panel__body border-t border-neutral-200">
+          <p class="field-hint mb-2">{{ t("content.reorder_fallback") }}</p>
+          {% for section in sections %}
+            <input type="hidden" name="section_id" value="{{ section.pk_homepage_section_id }}">
+          {% endfor %}
+          <button type="submit" class="btn-outline btn-sm">{{ t("content.save_order") }}</button>
+        </form>
+      </noscript>
+    {% else %}
+      <div class="admin-panel__body">
+        <div class="state-panel border-0 bg-transparent py-8">
+          {{ icon.grid(class="h-9 w-9 text-neutral-300") }}
+          <p class="state-panel__title">{{ t("content.no_sections") }}</p>
+          <p class="state-panel__body">{{ t("content.no_sections_hint") }}</p>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

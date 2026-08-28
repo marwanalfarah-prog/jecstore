@@ -1,0 +1,40 @@
+{# Site-wide announcement bar (Part I §3.3).
+
+   Renders above the header on *every* page, not just the homepage — this is the
+   mechanism for a storewide notice like "delivery temporarily suspended".
+   Zero, one or several may be live at once; they stack in priority order.
+   Dismissal is remembered per bar id in localStorage, so a customer who closes
+   one does not see it again on the next page.
+#}
+{% import "partials/icons.html" as icon %}
+
+{% for bar in ctx.announcement_bars %}
+<div x-data="{
+       dismissed: localStorage.getItem('jec.bar.{{ bar.pk_announcement_bar_id }}') === '1'
+     }"
+     x-show="!dismissed"
+     x-cloak
+     class="announcement-bar"
+     {% if bar.background_hex %}style="background-color: {{ bar.background_hex }}{% if bar.text_hex %}; color: {{ bar.text_hex }}{% endif %}"{% endif %}>
+  <div class="container-site flex items-center justify-center gap-3 py-2 text-center text-sm">
+    {{ icon.info(class="h-4 w-4 shrink-0 opacity-80") }}
+    <p class="min-w-0">
+      {% if bar.link_url %}
+        <a href="{{ bar.link_url }}" class="underline underline-offset-2 hover:no-underline">
+          {{ localized(bar, "message") }}
+        </a>
+      {% else %}
+        {{ localized(bar, "message") }}
+      {% endif %}
+    </p>
+    {% if bar.is_dismissible_flag %}
+      <button type="button"
+              class="ms-auto shrink-0 rounded p-1 opacity-70 transition hover:bg-white/15 hover:opacity-100"
+              aria-label="{{ t('common.close') }}"
+              @click="dismissed = true; localStorage.setItem('jec.bar.{{ bar.pk_announcement_bar_id }}', '1')">
+        {{ icon.close(class="h-4 w-4") }}
+      </button>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}

@@ -1,0 +1,341 @@
+{# Invoice / receipt (Part I §9, §1.1).
+
+   Used for the printed page, the browser print view, and the PDF renderer, so
+   the customer, the counter and the accountant all see the same document.
+
+   §1.1's rule drives the money block: the currency is labelled on every amount
+   and stated once more in the footer, so a downloaded invoice can never be read
+   in the wrong currency.
+#}
+<!doctype html>
+<html lang="{{ invoice.language }}" dir="{{ 'rtl' if invoice.is_rtl else 'ltr' }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ invoice.order.order_number }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
+  <style>
+    @page { size: A4; margin: 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "IBM Plex Sans Arabic", "IBM Plex Sans", system-ui, sans-serif;
+      font-size: 10.5pt; line-height: 1.55; color: #2B2B2F; margin: 0;
+    }
+    .sheet { max-width: 190mm; margin: 0 auto; }
+
+    header { display: flex; gap: 16px; align-items: flex-start;
+             border-bottom: 3px solid #E63950; padding-bottom: 12px; }
+    .brand { flex: 1; }
+    .brand h1 { margin: 0; font-size: 16pt; color: #2C3446; }
+    .brand p { margin: 2px 0 0; font-size: 9pt; color: #5A5A60; }
+    .doc { text-align: end; }
+    .doc .label { font-size: 8pt; text-transform: uppercase;
+                  letter-spacing: .04em; color: #7C7C82; }
+    .doc .number { font-size: 13pt; font-weight: 700; color: #E63950;
+                   font-variant-numeric: tabular-nums; }
+
+    .parties { display: flex; gap: 24px; margin: 14px 0 16px; }
+    .parties section { flex: 1; }
+    .parties h2 { margin: 0 0 4px; font-size: 8pt; text-transform: uppercase;
+                  letter-spacing: .04em; color: #7C7C82; }
+    .parties p { margin: 0; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    thead { display: table-header-group; }
+    th { background: #2C3446; color: #fff; font-size: 8pt; text-transform: uppercase;
+         letter-spacing: .03em; padding: 7px; text-align: start; }
+    td { padding: 7px; border-bottom: 1px solid #E9E9EA; vertical-align: top; }
+    tr { break-inside: avoid; }
+    .num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .muted { color: #7C7C82; font-size: 8.5pt; }
+    .strike { text-decoration: line-through; color: #A8A8AC; }
+
+    .totals { margin-top: 12px; display: flex; justify-content: flex-end; }
+    .totals table { width: 78mm; }
+    .totals td { border: 0; padding: 4px 7px; }
+    .totals .grand td { border-top: 2px solid #2C3446; font-weight: 700; font-size: 12pt; }
+    .totals .grand .num { color: #E63950; }
+    .balance { background: #FFF1F3; }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px;
+             font-size: 8pt; font-weight: 700; }
+    .badge-paid { background: #D1FADF; color: #166534; }
+    .badge-due  { background: #FEF0C7; color: #92400E; }
+    .badge-refund { background: #FEE2E2; color: #991B1B; }
+
+    footer { margin-top: 18px; padding-top: 8px; border-top: 1px solid #E9E9EA;
+             font-size: 8.5pt; color: #5A5A60; }
+    .currency-note { font-weight: 600; color: #2B2B2F; }
+
+    .no-print { margin-bottom: 14px; }
+    .no-print button, .no-print a {
+      background: #E63950; color: #fff; border: 0; border-radius: 6px;
+      padding: 8px 16px; font: inherit; font-weight: 600; cursor: pointer;
+      text-decoration: none; display: inline-block;
+    }
+    .no-print a.secondary { background: #3E7CB1; }
+    @media print { .no-print { display: none !important; } }
+  </style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="no-print">
+    <button type="button" onclick="window.print()">{{ t("invoice.print") }}</button>
+  </div>
+
+  <header>
+    {% with class = "" %}{% endwith %}
+    <div class="brand">
+      <h1>{{ t("site.name") }}</h1>
+      <p>{{ t("site.tagline") }}</p>
+      {% if ctx.site_settings.get("contact_phone") %}
+        <p dir="ltr">{{ ctx.site_settings["contact_phone"] }}</p>
+      {% endif %}
+      {% if ctx.site_settings.get("contact_email") %}
+        <p dir="ltr">{{ ctx.site_settings["contact_email"] }}</p>
+      {% endif %}
+    </div>
+    <div class="doc">
+      <div class="label">
+        {# A refunded order is a credit note, not an invoice — say which. #}
+        {{ t("invoice.credit_note") if invoice.is_refunded else t("invoice.title") }}
+      </div>
+      <div class="number" dir="ltr">{{ invoice.order.order_number }}</div>
+      <div class="muted">{{ date(invoice.order.placed_dt) }}</div>
+      <div style="margin-top:6px">
+        {% if invoice.is_refunded %}
+          <span class="badge badge-refund">{{ t("orders.payment_refunded") }}</span>
+        {% elif invoice.balance_amt <= 0 %}
+          <span class="badge badge-paid">{{ t("orders.payment_paid") }}</span>
+        {% else %}
+          <span class="badge badge-due">{{ t("invoice.balance_due") }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <div class="parties">
+    <section>
+      <h2>{{ t("invoice.billed_to") }}</h2>
+      <p>{{ invoice.customer.username if invoice.customer else "—" }}</p>
+      {% if invoice.customer %}<p class="muted" dir="ltr">{{ invoice.customer.email }}</p>{% endif %}
+    </section>
+
+    <section>
+      <h2>
+        {{ t("checkout.pickup") if invoice.order.fulfillment_method == "pickup"
+           else t("checkout.shipping") }}
+      </h2>
+      {% if invoice.order.fulfillment_method == "pickup" %}
+        <p>{{ localized(invoice.pickup_branch) if invoice.pickup_branch else t("checkout.pickup") }}</p>
+        {% if invoice.pickup_branch and localized(invoice.pickup_branch, "address") %}
+          <p class="muted">{{ localized(invoice.pickup_branch, "address") }}</p>
+        {% endif %}
+      {% else %}
+        <p>{{ invoice.order.ship_address_line or "—" }}</p>
+        <p class="muted">
+          {{ invoice.order.ship_city or "" }}
+          {%- if invoice.order.ship_province_name %}, {{ invoice.order.ship_province_name }}{% endif %}
+          {%- if invoice.order.ship_country_name %}, {{ invoice.order.ship_country_name }}{% endif %}
+        </p>
+      {% endif %}
+    </section>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t("admin.product") }}</th>
+        <th class="num">{{ t("product.quantity") }}</th>
+        <th class="num">{{ t("admin.unit_price") }}</th>
+        <th class="num">{{ t("cart.total") }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in invoice.lines %}
+        <tr>
+          <td>
+            {{ line.name }}
+            {% if line.variant_label %}<div class="muted">{{ line.variant_label }}</div>{% endif %}
+            {% if line.sku %}<div class="muted" dir="ltr">{{ line.sku }}</div>{% endif %}
+          </td>
+          <td class="num">
+            {{ num(line.quantity) }}
+            {# The ordered quantity is never edited down — the invoice has to
+               keep showing what was agreed — so a return is shown against it. #}
+            {% if line.was_returned %}
+              <div class="muted">
+                &minus;{{ num(line.returned_quantity) }} {{ t("invoice.returned") }}
+              </div>
+            {% endif %}
+          </td>
+          <td class="num">
+            {{ money(line.unit_price_amt) }}
+            {% if line.was_discounted %}
+              <div class="muted strike">{{ money(line.list_price_amt) }}</div>
+            {% endif %}
+          </td>
+          <td class="num">{{ money(line.line_total_amt) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <table>
+      <tr>
+        <td>{{ t("cart.subtotal") }}</td>
+        <td class="num">{{ money(invoice.order.subtotal_amt) }}</td>
+      </tr>
+      {% if invoice.order.invoice_discount_amt %}
+        <tr>
+          <td>{{ t("admin.invoice_discount") }}</td>
+          <td class="num">&minus;{{ money(invoice.order.invoice_discount_amt) }}</td>
+        </tr>
+      {% endif %}
+      {% if invoice.order.promocode_discount_amt %}
+        <tr>
+          <td>{{ t("cart.promocode") }}</td>
+          <td class="num">&minus;{{ money(invoice.order.promocode_discount_amt) }}</td>
+        </tr>
+      {% endif %}
+      <tr>
+        <td>{{ t("cart.shipping") }}</td>
+        <td class="num">
+          {% if invoice.order.shipping_quote_pending_flag %}
+            {{ t("cart.shipping_on_contact") }}
+          {% else %}
+            {{ money(invoice.order.shipping_amt) }}
+          {% endif %}
+        </td>
+      </tr>
+      <tr {% if not invoice.has_returns %}class="grand"{% endif %}>
+        <td>{{ t("cart.total") }}</td>
+        <td class="num">{{ money(invoice.order.total_amt) }}</td>
+      </tr>
+      {% if invoice.has_returns %}
+        {# A credit against the original, not a rewrite of it (§12). #}
+        <tr>
+          <td>{{ t("invoice.returned_credit") }}</td>
+          <td class="num">&minus;{{ money(invoice.returned_amt) }}</td>
+        </tr>
+        <tr class="grand">
+          <td>{{ t("invoice.net_total") }}</td>
+          <td class="num">{{ money(invoice.net_total_amt) }}</td>
+        </tr>
+      {% endif %}
+      {% if invoice.shows_secondary_currency %}
+        {# Shown only when the customer shopped in USD, and always alongside the
+           JOD figure — never instead of it (§1.1). #}
+        <tr>
+          <td class="muted">{{ t("invoice.approx_usd") }}</td>
+          <td class="num muted" dir="ltr">
+            {{ t("currency.usd") }} {{ invoice.secondary_total() }}
+          </td>
+        </tr>
+      {% endif %}
+      <tr>
+        <td>{{ t("admin.paid") }}</td>
+        <td class="num">{{ money(invoice.paid_amt) }}</td>
+      </tr>
+      {% if invoice.balance_amt > 0 %}
+        <tr class="balance">
+          <td>{{ t("invoice.balance_due") }}</td>
+          <td class="num">{{ money(invoice.balance_amt) }}</td>
+        </tr>
+      {% elif invoice.balance_amt < 0 %}
+        {# Overpaid, or refunded more than the goods came to. The document used
+           to print nothing at all here, so money owed *to* the customer was
+           invisible on the one page they actually read. #}
+        <tr class="balance">
+          <td>{{ t("invoice.credit_due") }}</td>
+          <td class="num">{{ money(-invoice.balance_amt) }}</td>
+        </tr>
+      {% endif %}
+    </table>
+  </div>
+
+  {% if invoice.has_returns %}
+    <h2 style="font-size:9pt;text-transform:uppercase;letter-spacing:.06em;
+               color:#7C7C82;margin:16px 0 4px">{{ t("admin.returns") }}</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t("returns.return_number") }}</th>
+          <th>{{ t("orders.items") }}</th>
+          <th>{{ t("admin.refund_destination") }}</th>
+          <th class="num">{{ t("returns.refund_amount") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order_return in invoice.returns %}
+          <tr>
+            <td dir="ltr">
+              {{ order_return.return_number }}
+              {% if order_return.refunded_dt %}
+                <div class="muted">{{ date(order_return.refunded_dt) }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {% for name, quantity in order_return.lines %}
+                <div>{{ num(quantity) }} &times; {{ name }}</div>
+              {% endfor %}
+            </td>
+            <td>
+              {# Which one it was matters to the customer: store credit spends
+                 here and nowhere else (§12). #}
+              {{ t("admin.refund_store_credit") if order_return.to_store_credit
+                 else t("admin.refund_money_box") }}
+            </td>
+            <td class="num">{{ money(order_return.refund_amt) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if invoice.payments %}
+    <h2 style="font-size:9pt;text-transform:uppercase;letter-spacing:.04em;
+               color:#7C7C82;margin:16px 0 4px">{{ t("admin.payments") }}</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t("admin.channel") }}</th>
+          <th>{{ t("admin.reference") }}</th>
+          <th>{{ t("admin.recorded") }}</th>
+          <th class="num">{{ t("admin.amount") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for payment in invoice.payments %}
+          <tr>
+            <td>{{ payment.channel or "—" }}</td>
+            <td class="muted" dir="ltr">{{ payment.reference or "—" }}</td>
+            <td class="muted">{{ date(payment.paid_dt) }}</td>
+            <td class="num">{{ money(payment.amount_amt) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if invoice.order.customer_note %}
+    <p style="margin-top:14px" class="muted">
+      <strong>{{ t("checkout.note") }}:</strong> {{ invoice.order.customer_note }}
+    </p>
+  {% endif %}
+
+  <footer>
+    {# §1.1: the currency must be clearly specified whenever an invoice is
+       downloaded. Stated once more here, in words, so it cannot be missed. #}
+    <p class="currency-note">
+      {{ t("invoice.currency_note", currency=t("currency.jod")) }}
+    </p>
+    <p>{{ t("invoice.thanks") }}</p>
+    <p class="muted">{{ t("site.name") }} — {{ datetime(now) }}</p>
+  </footer>
+</div>
+</body>
+</html>

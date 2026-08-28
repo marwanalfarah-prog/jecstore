@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("auth.verify_title") }} - {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-8 lg:py-14">
+  <div class="mx-auto max-w-md">
+    <div class="state-panel">
+      {% if verified %}
+        {{ icon.check_circle(class="h-10 w-10 text-success-700") }}
+        <p class="state-panel__title">{{ t("auth.verify_success") }}</p>
+        <a href="/account" class="btn-secondary btn-sm mt-2">{{ t("header.my_account") }}</a>
+      {% else %}
+        {{ icon.alert(class="h-10 w-10 text-warning-700") }}
+        <p class="state-panel__title">{{ t("auth.verify_invalid") }}</p>
+        <a href="/auth/login" class="btn-secondary btn-sm mt-2">{{ t("header.login") }}</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,119 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.consignment") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% with title = t("admin.consignment"), subtitle = t("consignment.purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <div class="flex flex-wrap items-center gap-2">
+    <form method="get" class="admin-filters flex-1">
+    {% with owned = ["direction", "open", "page"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+      <div>
+        <label for="direction" class="field-label">{{ t("consignment.direction") }}</label>
+        <select id="direction" name="direction" class="input w-44">
+          <option value="">{{ t("listing.all") }}</option>
+          {% for direction in directions %}
+            <option value="{{ direction }}" {% if request.query_params.get('direction') == direction %}selected{% endif %}>
+              {{ t("consignment.direction_" ~ direction) }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <label class="mt-6 inline-flex items-center gap-2 text-sm text-neutral-700">
+        <input type="checkbox" name="open" value="1"
+               {% if request.query_params.get('open') == '1' %}checked{% endif %}
+               class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+        <span>{{ t("admin.filter_open") }}</span>
+      </label>
+      <button type="submit" class="btn-secondary btn-sm">{{ t("listing.filters") }}</button>
+      <a href="/admin/consignment" class="btn-ghost btn-sm">{{ t("listing.clear_filters") }}</a>
+      <span class="ms-auto text-xs text-neutral-500">
+        {{ t("listing.results_count", count=num(arrangements|length)) }}
+      </span>
+    
+    <div class="ms-auto flex flex-wrap items-center gap-2">
+      {% with report = "consignment", query = "" %}
+        {% include "admin/partials/export_buttons.html" %}
+      {% endwith %}
+    </div>
+</form>
+
+    <a href="/admin/consignment/new" class="btn-primary btn-sm">
+      {{ icon.plus(class="h-4 w-4") }} {{ t("consignment.new_arrangement") }}
+    </a>
+  </div>
+
+  <section class="admin-panel">
+    {% if arrangements %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.reference") }}</th>
+              <th>{{ t("consignment.consignor") }}</th>
+              <th>{{ t("consignment.direction") }}</th>
+              <th class="num">{{ t("consignment.split") }}</th>
+              <th class="num">{{ t("consignment.net_owed") }}</th>
+              <th>{{ t("admin.status") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for arrangement in arrangements %}
+              {% set position = positions.get(arrangement.pk_consignment_id) %}
+              {% set consignor = consignors.get(arrangement.fk_consignor_id) %}
+              <tr>
+                <td>
+                  <a href="/admin/consignment/{{ arrangement.pk_consignment_id }}"
+                     class="font-medium text-secondary-700 hover:underline" dir="ltr">
+                    {{ arrangement.reference }}
+                  </a>
+                </td>
+                <td>{{ consignor.name if consignor else "..." }}</td>
+                <td>
+                  {% if arrangement.direction == "inbound" %}
+                    <span class="badge-success">{{ t("consignment.direction_inbound") }}</span>
+                  {% else %}
+                    <span class="badge-warning">{{ t("consignment.direction_outbound") }}</span>
+                  {% endif %}
+                </td>
+                <td class="num">{{ percentage(arrangement.default_our_share_percentage) }}</td>
+                <td class="num">
+                  {% if position %}
+                    <span class="{% if position.we_owe %}text-danger-700{% else %}text-success-700{% endif %}">
+                      {{ money(position.net_owed_amt) }}
+                    </span>
+                  {% else %}
+                    {{ money(0) }}
+                  {% endif %}
+                </td>
+                <td>
+                  {% if arrangement.closed_dt %}
+                    <span class="badge-neutral">{{ t("common.close") }}</span>
+                  {% else %}
+                    <span class="badge-success">{{ t("admin.filter_open") }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        <div class="state-panel border-0 bg-transparent py-8">
+          {{ icon.list(class="h-9 w-9 text-neutral-300") }}
+          <p class="state-panel__title">{{ t("listing.no_results") }}</p>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

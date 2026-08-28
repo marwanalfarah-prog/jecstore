@@ -1,0 +1,93 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.money_boxes") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("admin.money_boxes"), subtitle = t("money.purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <div class="flex flex-wrap items-center gap-2">
+    <form method="get" class="admin-filters flex-1">
+    {% with owned = ["open", "page"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+      <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+        <input type="checkbox" name="open" value="1"
+               {% if request.query_params.get('open') == '1' %}checked{% endif %}
+               class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+        <span>{{ t("money.open_only") }}</span>
+      </label>
+      <button type="submit" class="btn-secondary btn-sm">{{ t("listing.filters") }}</button>
+      <a href="/admin/money-boxes" class="btn-ghost btn-sm">{{ t("listing.clear_filters") }}</a>
+      <span class="ms-auto text-sm text-neutral-600">
+        {{ t("money.total_balance") }}: <strong class="tabular">{{ money(total_balance) }}</strong>
+      </span>
+    
+    <div class="ms-auto flex flex-wrap items-center gap-2">
+      {% with report = "money_boxes", query = "" %}
+        {% include "admin/partials/export_buttons.html" %}
+      {% endwith %}
+    </div>
+</form>
+    <a href="/admin/money-boxes/new" class="btn-primary btn-sm">
+      {{ icon.plus(class="h-4 w-4") }} {{ t("money.new_box") }}
+    </a>
+  </div>
+
+  <section class="admin-panel">
+    {% if boxes %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("money.box_code") }}</th>
+              <th>{{ t("admin.money_box") }}</th>
+              <th>{{ t("admin.branches") }}</th>
+              <th class="num">{{ t("money.opening_balance") }}</th>
+              <th class="num">{{ t("money.balance") }}</th>
+              <th>{{ t("admin.status") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for box in boxes %}
+              <tr>
+                <td>
+                  <a href="/admin/money-boxes/{{ box.pk_money_box_id }}"
+                     class="font-medium text-secondary-700 hover:underline" dir="ltr">
+                    {{ box.box_code }}
+                  </a>
+                </td>
+                <td>{{ localized(box) }}</td>
+                <td>{{ localized(branch_map.get(box.fk_branch_id)) if box.fk_branch_id else "..." }}</td>
+                <td class="num">{{ money(box.opening_balance_amt) }}</td>
+                <td class="num font-medium">{{ money(balances.get(box.pk_money_box_id, 0)) }}</td>
+                <td>
+                  {% if box.is_open_flag %}
+                    <span class="badge-success">{{ t("money.open") }}</span>
+                  {% else %}
+                    <span class="badge-neutral">{{ t("money.closed") }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        <div class="state-panel border-0 bg-transparent py-8">
+          {{ icon.wallet(class="h-9 w-9 text-neutral-300") }}
+          <p class="state-panel__title">{{ t("money.no_boxes") }}</p>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

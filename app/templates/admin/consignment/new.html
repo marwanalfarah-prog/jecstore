@@ -1,0 +1,102 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("consignment.new_arrangement") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-4">
+
+  {% with title = t("consignment.new_arrangement"), subtitle = t("consignment.new_purpose"),
+          back_href = "/admin/consignment", back_label = t("admin.consignment") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <form method="post" action="/admin/consignment/new" class="space-y-4">
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("consignment.consignor") }}</h2>
+      </div>
+      <div class="admin-panel__body grid gap-4 md:grid-cols-2">
+        <div>
+          <label for="consignor_id" class="field-label">{{ t("consignment.existing_consignor") }}</label>
+          <select id="consignor_id" name="consignor_id" class="input">
+            <option value="">{{ t("consignment.new_consignor") }}</option>
+            {% for consignor in consignors %}
+              <option value="{{ consignor.pk_consignor_id }}">{{ consignor.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="new_consignor_name" class="field-label">{{ t("consignment.new_consignor_name") }}</label>
+          <input id="new_consignor_name" name="new_consignor_name" type="text" class="input">
+        </div>
+        <div>
+          <label for="contact_person" class="field-label">{{ t("consignment.contact_person") }}</label>
+          <input id="contact_person" name="contact_person" type="text" class="input">
+        </div>
+        <div>
+          <label for="phone_number" class="field-label">{{ t("auth.phone") }}</label>
+          <input id="phone_number" name="phone_number" type="tel" class="input" dir="ltr">
+        </div>
+        <div class="md:col-span-2">
+          <label for="email" class="field-label">{{ t("auth.email") }}</label>
+          <input id="email" name="email" type="email" class="input" dir="ltr">
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("consignment.arrangement") }}</h2>
+      </div>
+      <div class="admin-panel__body grid gap-4 md:grid-cols-2">
+        <div>
+          <label for="direction" class="field-label">{{ t("consignment.direction") }}</label>
+          <select id="direction" name="direction" class="input">
+            {% for direction in directions %}
+              <option value="{{ direction }}">{{ t("consignment.direction_" ~ direction) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="default_our_share_percentage" class="field-label">{{ t("consignment.our_share") }}</label>
+          <input id="default_our_share_percentage" name="default_our_share_percentage"
+                 type="text" inputmode="decimal" value="85" class="input" dir="ltr">
+        </div>
+        <div>
+          <label for="split_basis" class="field-label">{{ t("consignment.split_basis") }}</label>
+          <select id="split_basis" name="split_basis" class="input">
+            {% for basis in bases %}
+              <option value="{{ basis }}">{{ t("consignment.basis_" ~ basis) }}</option>
+            {% endfor %}
+          </select>
+          <p class="field-hint">{{ t("consignment.split_basis_hint") }}</p>
+        </div>
+        <div class="flex items-end">
+          <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" name="promocodes_eligible" value="1"
+                   class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+            <span>{{ t("consignment.promocodes_eligible") }}</span>
+          </label>
+        </div>
+        <div>
+          <label for="starts_date" class="field-label">{{ t("consignment.starts_date") }}</label>
+          <input id="starts_date" name="starts_date" type="date" class="input" dir="ltr">
+        </div>
+        <div>
+          <label for="ends_date" class="field-label">{{ t("consignment.ends_date") }}</label>
+          <input id="ends_date" name="ends_date" type="date" class="input" dir="ltr">
+        </div>
+        <div class="md:col-span-2">
+          <label for="note" class="field-label">{{ t("approvals.note") }}</label>
+          <textarea id="note" name="note" rows="3" class="input"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <button type="submit" class="btn-primary">
+      {{ icon.check(class="h-4 w-4") }} {{ t("common.save") }}
+    </button>
+  </form>
+</div>
+{% endblock %}

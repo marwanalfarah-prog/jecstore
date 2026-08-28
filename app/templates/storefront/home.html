@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("site.name") }} — {{ t("site.tagline") }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ settings.app_base_url }}/">{% endblock %}
+
+{% block content %}
+<div class="container-site space-y-section py-6 lg:py-8">
+
+  {% for resolved in sections %}
+    {% set section = resolved.section %}
+
+    {# --- Banner ------------------------------------------------------- #}
+    {% if section.section_kind == "banner" %}
+      {% set image = section.image_path_ar if lang == "ar" else section.image_path_en %}
+      <section class="overflow-hidden rounded-card">
+        {% if section.link_url %}<a href="{{ section.link_url }}">{% endif %}
+          {% if image %}
+            <img src="{{ media(image) }}"
+                 alt="{{ localized(section, 'title') }}"
+                 class="w-full object-cover"
+                 {% if loop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+          {% else %}
+            {# No artwork yet: a typographic banner in brand colours, so the
+               slot reads as designed rather than broken (§17.4). #}
+            <div class="flex min-h-48 flex-col items-center justify-center gap-2
+                        bg-gradient-to-br from-primary-600 to-primary-800 px-6 py-14 text-center">
+              <p class="text-3xl font-bold text-white">{{ localized(section, "title") }}</p>
+              {% if section.subtitle_ar or section.subtitle_en %}
+                <p class="text-lg text-white/85">{{ localized(section, "subtitle") }}</p>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% if section.link_url %}</a>{% endif %}
+      </section>
+
+    {# --- Category showcase -------------------------------------------- #}
+    {% elif section.section_kind == "category_showcase" %}
+      <section>
+        {% with title = localized(section, "title") or t("home.shop_by_category") %}
+          {% include "partials/section_head.html" %}
+        {% endwith %}
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {% for category in ctx.main_categories %}
+            <a href="{{ category_url(category) }}"
+               class="card group flex flex-col items-center gap-3 p-4 text-center
+                      transition hover:border-primary-200 hover:shadow-card-hover">
+              {% if category.image_path %}
+                <img src="{{ media(category.image_path) }}" alt=""
+                     class="h-16 w-16 object-contain" loading="lazy">
+              {% else %}
+                <span class="flex h-16 w-16 items-center justify-center rounded-full
+                             bg-primary-50 text-primary-600">
+                  {{ icon.grid(class="h-7 w-7") }}
+                </span>
+              {% endif %}
+              <span class="text-sm font-medium text-navy-900 group-hover:text-primary-700">
+                {{ localized(category) }}
+              </span>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+
+    {# --- Publisher carousel (Part I §4, §5.6) -------------------------- #}
+    {% elif section.section_kind == "publisher_carousel" %}
+      <section>
+        {% with title = localized(section, "title") or t("home.publishers") %}
+          {% include "partials/section_head.html" %}
+        {% endwith %}
+        <div class="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+          {% for publisher in resolved.publishers %}
+            <a href="{{ publisher_url(publisher) }}"
+               class="card flex h-24 items-center justify-center p-4 grayscale transition
+                      hover:grayscale-0 hover:shadow-card-hover"
+               title="{{ localized(publisher) }}">
+              {% if publisher.logo_path %}
+                <img src="{{ media(publisher.logo_path) }}" alt="{{ localized(publisher) }}"
+                     class="max-h-full max-w-full object-contain" loading="lazy">
+              {% else %}
+                <span class="text-center text-sm font-semibold text-neutral-600">
+                  {{ localized(publisher) }}
+                </span>
+              {% endif %}
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+
+    {# --- Product carousels --------------------------------------------- #}
+    {% elif resolved.products %}
+      {% set products = resolved.products %}
+      {% set prices = resolved.prices %}
+      {% set availability = resolved.availability %}
+      {% set ratings = resolved.ratings %}
+      <section>
+        {% with title = localized(section, "title"),
+                link = category_url(section.category) if section.fk_category_id and section.category else None %}
+          {% include "partials/section_head.html" %}
+        {% endwith %}
+
+        {# Scroll-snap rail on mobile, grid from `lg` up. No carousel library:
+           the browser already does this well, and it costs nothing on a phone. #}
+        <div class="carousel-rail lg:grid lg:grid-cols-6 lg:gap-4 lg:overflow-visible">
+          {% for product in products %}
+            {% with price = prices[product.pk_product_id],
+                    availability = availability[product.pk_product_id] %}
+              {% include "partials/product_card.html" %}
+            {% endwith %}
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  {% else %}
+    {# The homepage is admin-built; before anything is configured, say so
+       plainly rather than rendering a blank page (Part II §5). #}
+    <div class="state-panel">
+      {{ icon.grid(class="h-10 w-10 text-neutral-300") }}
+      <p class="state-panel__title">{{ t("listing.no_results") }}</p>
+      <p class="state-panel__body">{{ t("listing.no_results_hint") }}</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

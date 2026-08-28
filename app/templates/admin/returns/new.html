@@ -1,0 +1,141 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("returns.new") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-4">
+
+  {% if order %}
+    {% with title = t("returns.new"), title_ltr = true,
+            subtitle = t("returns.new_purpose"),
+            back_href = "/admin/orders/" ~ order.pk_order_id,
+            back_label = order.order_number %}
+      {% include "admin/partials/page_header.html" %}
+    {% endwith %}
+  {% else %}
+    {% with title = t("returns.new"), subtitle = t("returns.pick_order_hint"),
+            back_href = "/admin/returns", back_label = t("admin.returns") %}
+      {% include "admin/partials/page_header.html" %}
+    {% endwith %}
+  {% endif %}
+
+  {% if not order %}
+    {# Step one when the screen is reached from the Returns list rather than
+       from a particular order: which order is this book coming back from? #}
+    <form method="get" action="/admin/returns/new" class="admin-filters">
+    {% with owned = ["q", "order_id"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+      <div class="flex-1">
+        <label for="q" class="field-label">{{ t("orders.order_number") }}</label>
+        <input id="q" name="q" type="search" dir="ltr" autofocus class="input w-full"
+               value="{{ query }}" placeholder="{{ t('returns.pick_order_search') }}">
+      </div>
+      <button type="submit" class="btn-secondary btn-sm">{{ t("common.search") }}</button>
+    </form>
+
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("returns.pick_order") }}</h2>
+      </div>
+      {% if candidates %}
+        <ul class="divide-y divide-neutral-100">
+          {% for candidate in candidates %}
+            <li>
+              <a href="/admin/returns/new?order_id={{ candidate.pk_order_id }}"
+                 class="flex items-center gap-3 px-4 py-2.5 transition hover:bg-neutral-50">
+                <span class="min-w-0 flex-1">
+                  <span class="block text-sm font-medium text-navy-900" dir="ltr">
+                    {{ candidate.order_number }}
+                  </span>
+                  <span class="block text-xs text-neutral-500">{{ datetime(candidate.placed_dt) }}</span>
+                </span>
+                <span class="tabular shrink-0 text-sm">{{ money(candidate.total_amt) }}</span>
+                {{ icon.chevron_forward(class="h-4 w-4 shrink-0 text-neutral-300") }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="admin-panel__body">
+          {% with empty_icon = "receipt", empty_title = t("listing.no_results"),
+                  empty_body = t("returns.pick_order_none") %}
+            {% include "admin/partials/empty.html" %}
+          {% endwith %}
+        </div>
+      {% endif %}
+    </section>
+
+  {% elif returnable %}
+    <form method="post" action="/admin/returns/new" class="space-y-4">
+      <input type="hidden" name="order_id" value="{{ order.pk_order_id }}">
+
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("returns.select_items") }}</h2>
+          {# Partial returns are the ordinary case, not a special one (§12). #}
+          <span class="badge-neutral ms-auto">{{ t("returns.partial_ok") }}</span>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>{{ t("admin.product") }}</th>
+                <th class="num">{{ t("returns.returnable") }}</th>
+                <th class="num">{{ t("returns.return_qty") }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for line, remaining in returnable %}
+                <tr>
+                  <td>
+                    <span class="font-medium text-navy-900">
+                      {{ line.product_name_ar if lang == "ar" else line.product_name_en }}
+                    </span>
+                    <span class="block text-2xs text-neutral-400" dir="ltr">{{ line.sku }}</span>
+                  </td>
+                  <td class="num">{{ num(remaining) }}</td>
+                  <td class="num">
+                    <input type="number" name="qty_{{ line.pk_order_line_id }}"
+                           min="0" max="{{ remaining }}" value="0"
+                           class="input h-8 w-20 min-h-0 py-0 text-end text-sm">
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel__body space-y-3">
+          <div>
+            <label for="reason_code" class="field-label">{{ t("returns.reason") }}</label>
+            <select id="reason_code" name="reason_code" class="input h-9 min-h-0 py-0 text-sm">
+              {% for reason in reasons %}
+                <option value="{{ reason }}">{{ t("returns.reason_" ~ reason) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label for="reason_detail" class="field-label">{{ t("returns.customer_note") }}</label>
+            <textarea id="reason_detail" name="reason_detail" rows="2" class="input"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <button type="submit" class="btn-primary"
+              data-confirm="{{ t('returns.confirm_create') }}">{{ t("returns.create") }}</button>
+    </form>
+  {% else %}
+    {% with empty_icon = "package", empty_title = t("returns.nothing_returnable"),
+            empty_body = t("returns.nothing_returnable_hint"),
+            empty_action_href = "/admin/returns/new",
+            empty_action_label = t("returns.pick_order") %}
+      {% include "admin/partials/empty.html" %}
+    {% endwith %}
+  {% endif %}
+</div>
+{% endblock %}

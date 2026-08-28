@@ -1,0 +1,106 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.inventory") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% with title = t("admin.inventory"), subtitle = t("inventory.purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <form method="get" class="admin-filters">
+    {% with owned = ["q", "filter"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+    <div>
+      <label for="q" class="field-label">{{ t("admin.product") }}</label>
+      <input id="q" name="q" type="search" class="input w-56"
+             value="{{ request.query_params.get('q', '') }}">
+    </div>
+    <label class="flex items-center gap-2 text-sm">
+      <input type="checkbox" name="filter" value="low" {% if only_low %}checked{% endif %}
+             class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600"
+             data-autosubmit>
+      {{ t("inventory.low_only") }}
+    </label>
+    <button type="submit" class="btn-secondary btn-sm">{{ t("listing.filters") }}</button>
+    <div class="ms-auto flex flex-wrap items-center gap-2">
+      {% with report = "inventory", query = "" %}
+        {% include "admin/partials/export_buttons.html" %}
+      {% endwith %}
+      <a href="/admin/inventory/shipments" class="btn-ghost btn-sm">{{ t("admin.shipments") }}</a>
+      <a href="/admin/inventory/transfers" class="btn-ghost btn-sm">{{ t("inventory.transfers") }}</a>
+      <a href="/admin/inventory/stock-takes" class="btn-ghost btn-sm">{{ t("inventory.stock_takes") }}</a>
+    </div>
+  </form>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("inventory.positions") }}</h2>
+      {% if low_count %}
+        <span class="badge-warning">{{ t("inventory.low_count", count=num(low_count)) }}</span>
+      {% endif %}
+    </div>
+    {% if rows %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.product") }}</th>
+              <th>SKU</th>
+              <th class="num">{{ t("inventory.on_hand") }}</th>
+              <th class="num">{{ t("inventory.reserved") }}</th>
+              <th class="num">{{ t("inventory.sellable") }}</th>
+              <th class="num">{{ t("inventory.min") }}</th>
+              <th class="num">{{ t("inventory.avg_cost") }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td>
+                  <a href="/admin/inventory/item/{{ row.variant.pk_product_variant_id }}"
+                     class="font-medium text-secondary-700 hover:underline">
+                    {{ localized(row.product) }}
+                  </a>
+                </td>
+                <td class="text-xs text-neutral-500" dir="ltr">{{ row.variant.sku }}</td>
+                <td class="num">{{ num(row.on_hand) }}</td>
+                <td class="num text-neutral-500">{{ num(row.reserved) }}</td>
+                <td class="num font-medium">{{ num(row.sellable) }}</td>
+                <td class="num text-neutral-500">
+                  {{ num(row.minimum) if row.minimum is not none else "—" }}
+                </td>
+                <td class="num">{{ money(row.average_cost_amt) }}</td>
+                <td>
+                  {% if row.is_out %}
+                    <span class="badge-danger">{{ t("product.out_of_stock") }}</span>
+                  {% elif row.is_low %}
+                    <span class="badge-warning">{{ t("inventory.low") }}</span>
+                  {% else %}
+                    <span class="badge-success">{{ t("product.in_stock") }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% with shown = rows | length, cap = row_limit %}
+        {% include "admin/partials/truncated.html" %}
+      {% endwith %}
+    {% else %}
+      <div class="admin-panel__body">
+        {% with empty_icon = "package", empty_title = t("listing.no_results"),
+                empty_body = t("inventory.no_positions_hint") %}
+          {% include "admin/partials/empty.html" %}
+        {% endwith %}
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

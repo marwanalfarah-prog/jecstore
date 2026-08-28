@@ -1,0 +1,52 @@
+{# Star ratings (Part I §14).
+
+   Rendered as a fixed row of five outlines with a filled row clipped over the
+   top, rather than as five separate icons chosen by comparison. That way a 3.5
+   is drawn as three-and-a-half stars instead of being rounded to something the
+   number beside it contradicts.
+
+   The clip runs from the inline start, so it fills right-to-left in Arabic
+   without a second implementation (§17.3).
+#}
+
+{% macro _row(class) -%}
+<span class="{{ class }}">
+  {%- for _ in range(5) -%}
+    <svg viewBox="0 0 20 20" class="h-full w-[1em] shrink-0" aria-hidden="true">
+      <path d="M10 1.6l2.5 5.4 5.9.7-4.4 4 1.2 5.8L10 14.6 4.8 17.5 6 11.7 1.6 7.7l5.9-.7z"/>
+    </svg>
+  {%- endfor -%}
+</span>
+{%- endmacro %}
+
+{# `value` is 0–5 and may be fractional. `size` is any Tailwind height. #}
+{% macro rating(value, size="h-4") %}
+<span class="relative inline-block {{ size }} align-middle leading-none"
+      style="width: calc(5 * 1em)">
+  {{ _row("absolute inset-0 flex text-star-empty fill-current") }}
+  <span class="absolute inset-0 overflow-hidden"
+        style="width: {{ ((value | float) / 5 * 100) | round(2) }}%">
+    {{ _row("flex h-full text-star fill-current") }}
+  </span>
+</span>
+{% endmacro %}
+
+{# The whole line: stars, the number, and how many people said so. #}
+{% macro summary(rating_summary, t, num, size="h-4") %}
+{% if rating_summary.has_reviews %}
+  <span class="inline-flex items-center gap-2">
+    {{ rating(rating_summary.average, size) }}
+    <span class="text-sm font-semibold text-navy-900 tabular">
+      {{ num(rating_summary.average, decimals=1) }}
+    </span>
+    <span class="text-sm text-neutral-500">
+      ({{ num(rating_summary.count) }})
+    </span>
+  </span>
+{% else %}
+  <span class="inline-flex items-center gap-2">
+    {{ rating(0, size) }}
+    <span class="text-sm text-neutral-500">{{ t("product.no_reviews_yet") }}</span>
+  </span>
+{% endif %}
+{% endmacro %}

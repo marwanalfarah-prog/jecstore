@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("account.newsletter") }} - {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <h1>{{ t("account.newsletter") }}</h1>
+    <a href="/account" class="btn-outline btn-sm">{{ t("header.my_account") }}</a>
+  </div>
+
+  <form method="post" action="/account/newsletter" class="card mt-6 max-w-xl p-5">
+    <label class="flex items-start gap-3">
+      <input type="checkbox" name="subscribed" value="1"
+             class="mt-1 rounded border-neutral-300 text-primary-600 focus:ring-secondary-600"
+             {% if newsletter_active %}checked{% endif %}>
+      <span>
+        <span class="block font-semibold text-navy-900">{{ t("account.newsletter") }}</span>
+        <span class="mt-1 block text-sm text-neutral-600">
+          {{ t("account.newsletter_subscribed" if newsletter_active else "account.newsletter_unsubscribed") }}
+        </span>
+      </span>
+    </label>
+    <button type="submit" class="btn-primary mt-5">
+      {{ icon.check(class="h-4 w-4") }} {{ t("account.save_newsletter") }}
+    </button>
+  </form>
+</div>
+{% endblock %}

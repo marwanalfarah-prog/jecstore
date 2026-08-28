@@ -1,0 +1,793 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ localized(product) }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = localized(product), subtitle = t("catalog.product_purpose"),
+          back_href = "/admin/products", back_label = t("admin.products") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
+    <div class="space-y-4">
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("catalog.product_details") }}</h2>
+          <p class="text-xs text-neutral-500">{{ t("catalog.details_note") }}</p>
+        </div>
+        <form method="post" class="admin-panel__body space-y-4">
+          <div class="grid gap-4 lg:grid-cols-2">
+            <div>
+              <label for="name_ar" class="field-label">{{ t("catalog.name_ar") }}</label>
+              <input id="name_ar" name="name_ar" class="input" required value="{{ product.name_ar }}">
+            </div>
+            <div>
+              <label for="name_en" class="field-label">{{ t("catalog.name_en") }}</label>
+              <input id="name_en" name="name_en" class="input" required dir="ltr" value="{{ product.name_en }}">
+            </div>
+            <div>
+              <label for="category_id" class="field-label">{{ t("admin.categories") }}</label>
+              <select id="category_id" name="category_id" class="input">
+                <option value="">{{ t("listing.all") }}</option>
+                {% for category in categories %}
+                  <option value="{{ category.pk_category_id }}" {% if primary_category_id == category.pk_category_id %}selected{% endif %}>
+                    {{ "-- " * category.depth }}{{ localized(category) }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="publisher_id" class="field-label">{{ t("catalog.publisher") }}</label>
+              <select id="publisher_id" name="publisher_id" class="input">
+                <option value="">{{ t("listing.all") }}</option>
+                {% for publisher in publishers %}
+                  <option value="{{ publisher.pk_publisher_id }}" {% if product.fk_publisher_id == publisher.pk_publisher_id %}selected{% endif %}>{{ localized(publisher) }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="slug_ar" class="field-label">{{ t("catalog.slug_ar") }}</label>
+              <input id="slug_ar" name="slug_ar" class="input" value="{{ product.slug_ar }}">
+            </div>
+            <div>
+              <label for="slug_en" class="field-label">{{ t("catalog.slug_en") }}</label>
+              <input id="slug_en" name="slug_en" class="input" dir="ltr" value="{{ product.slug_en }}">
+            </div>
+            <div>
+              <label for="isbn" class="field-label">{{ t("product.isbn") }}</label>
+              <input id="isbn" name="isbn" class="input" dir="ltr" value="{{ product.isbn or '' }}">
+            </div>
+            <div>
+              <label for="short_description_ar" class="field-label">{{ t("catalog.short_description_ar") }}</label>
+              <textarea id="short_description_ar" name="short_description_ar" rows="2" class="input">{{ product.short_description_ar or "" }}</textarea>
+            </div>
+            <div>
+              <label for="short_description_en" class="field-label">{{ t("catalog.short_description_en") }}</label>
+              <textarea id="short_description_en" name="short_description_en" rows="2" class="input" dir="ltr">{{ product.short_description_en or "" }}</textarea>
+            </div>
+            <div>
+              <label for="description_ar" class="field-label">{{ t("catalog.description_ar") }}</label>
+              <textarea id="description_ar" name="description_ar" rows="5" class="input">{{ product.description_ar or "" }}</textarea>
+            </div>
+            <div>
+              <label for="description_en" class="field-label">{{ t("catalog.description_en") }}</label>
+              <textarea id="description_en" name="description_en" rows="5" class="input" dir="ltr">{{ product.description_en or "" }}</textarea>
+            </div>
+            <div>
+              <label for="discount_overlap_rule" class="field-label">{{ t("catalog.overlap_rule") }}</label>
+              <select id="discount_overlap_rule" name="discount_overlap_rule" class="input">
+                {% for rule in overlap_rules %}
+                  <option value="{{ rule.value }}" {% if product.discount_overlap_rule == rule.value %}selected{% endif %}>
+                    {{ t("catalog.overlap_" ~ rule.value) }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label for="min_stock_level" class="field-label">{{ t("inventory.min") }}</label>
+                <input id="min_stock_level" name="min_stock_level" type="number" class="input" value="{{ product.min_stock_level or '' }}" dir="ltr">
+              </div>
+              <div>
+                <label for="optimal_stock_level" class="field-label">{{ t("catalog.optimal") }}</label>
+                <input id="optimal_stock_level" name="optimal_stock_level" type="number" class="input" value="{{ product.optimal_stock_level or '' }}" dir="ltr">
+              </div>
+              <div>
+                <label for="max_stock_level" class="field-label">{{ t("catalog.maximum") }}</label>
+                <input id="max_stock_level" name="max_stock_level" type="number" class="input" value="{{ product.max_stock_level or '' }}" dir="ltr">
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap gap-4">
+              <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" name="is_visible" value="1" {% if product.is_visible_flag %}checked{% endif %} class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                <span>{{ t("catalog.visible") }}</span>
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" name="published" value="1" {% if product.published_dt %}checked{% endif %} class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                <span>{{ t("catalog.published") }}</span>
+              </label>
+            </div>
+            <button type="submit" class="btn-primary btn-sm">{{ t("common.save") }}</button>
+          </div>
+        </form>
+      </section>
+
+      {# Custom details (Part I section 5.2).
+         The value row is the assignment: blank fields close the active value,
+         and non-blank fields make the detail apply to this product or variant. #}
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("catalog.custom_details") }}</h2>
+          <a href="/admin/products/attributes"
+             class="ms-auto text-xs font-semibold text-secondary-700 hover:underline">
+            {{ t("catalog.manage_custom_details") }}
+          </a>
+        </div>
+
+        {% if attribute_rows %}
+          <form method="post" action="/admin/products/{{ product.pk_product_id }}/attributes"
+                class="admin-panel__body space-y-4">
+            {% for row in attribute_rows %}
+              <input type="hidden" name="attribute_ids" value="{{ row.attribute.pk_product_attribute_id }}">
+            {% endfor %}
+            {% for variant in variants %}
+              <input type="hidden" name="variant_ids" value="{{ variant.pk_product_variant_id }}">
+            {% endfor %}
+
+            {% set product_values = attribute_value_index.get("product", {}) %}
+            <div class="space-y-2">
+              <h3 class="text-sm font-semibold text-navy-900">{{ t("catalog.product_custom_details") }}</h3>
+              <div class="admin-table-wrap">
+                <table class="admin-table align-top">
+                  <thead>
+                    <tr>
+                      <th>{{ t("catalog.custom_detail") }}</th>
+                      <th>{{ t("catalog.value") }}</th>
+                      <th>{{ t("catalog.visibility") }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in attribute_rows %}
+                      {% set attribute = row.attribute %}
+                      {% set current = product_values.get(attribute.pk_product_attribute_id) %}
+                      {% set prefix = "p_" ~ attribute.pk_product_attribute_id %}
+                      <tr>
+                        <td>
+                          <span class="font-medium">{{ localized(attribute) }}</span>
+                          <div class="text-2xs text-neutral-400" dir="ltr">{{ attribute.attribute_code }}</div>
+                        </td>
+                        <td>
+                          {% if attribute.input_type == "dropdown" %}
+                            <select name="{{ prefix }}_choice_id" class="input h-9 min-h-0 py-0 text-sm"
+                                    {% if not can_manage_attributes %}disabled{% endif %}>
+                              <option value="">-</option>
+                              {% for choice in row.choices %}
+                                <option value="{{ choice.pk_product_attribute_choice_id }}"
+                                        {% if current and current.fk_product_attribute_choice_id == choice.pk_product_attribute_choice_id %}selected{% endif %}>
+                                  {{ localized(choice, "value") }}
+                                </option>
+                              {% endfor %}
+                            </select>
+                          {% else %}
+                            <div class="grid gap-2 sm:grid-cols-2">
+                              <input name="{{ prefix }}_value_ar" class="input h-9 min-h-0 py-0 text-sm"
+                                     value="{{ current.value_ar if current else '' }}"
+                                     aria-label="{{ t('catalog.value_ar') }}"
+                                     placeholder="{{ t('catalog.value_ar') }}"
+                                     {% if not can_manage_attributes %}readonly{% endif %}>
+                              <input name="{{ prefix }}_value_en" class="input h-9 min-h-0 py-0 text-sm" dir="ltr"
+                                     value="{{ current.value_en if current else '' }}"
+                                     aria-label="{{ t('catalog.value_en') }}"
+                                     placeholder="{{ t('catalog.value_en') }}"
+                                     {% if not can_manage_attributes %}readonly{% endif %}>
+                            </div>
+                          {% endif %}
+                        </td>
+                        <td>
+                          <span class="badge-neutral">
+                            {{ t("catalog.attribute_visibility_" ~ attribute.visibility) }}
+                          </span>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {% if variants %}
+              <div class="space-y-2">
+                <h3 class="text-sm font-semibold text-navy-900">{{ t("catalog.variant_custom_details") }}</h3>
+                <div class="space-y-2">
+                  {% for variant in variants %}
+                    {% set variant_key = "variant:" ~ variant.pk_product_variant_id %}
+                    {% set variant_values = attribute_value_index.get(variant_key, {}) %}
+                    <details class="border-t border-neutral-200 pt-2">
+                      <summary class="cursor-pointer text-xs font-medium text-neutral-600 hover:text-neutral-800">
+                        {% if variant.name_ar or variant.name_en %}{{ localized(variant) }}{% else %}{{ variant.sku }}{% endif %}
+                        <span class="text-neutral-400" dir="ltr">{{ variant.sku }}</span>
+                      </summary>
+                      <div class="admin-table-wrap mt-2">
+                        <table class="admin-table align-top">
+                          <thead>
+                            <tr>
+                              <th>{{ t("catalog.custom_detail") }}</th>
+                              <th>{{ t("catalog.value") }}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for row in attribute_rows %}
+                              {% set attribute = row.attribute %}
+                              {% set current = variant_values.get(attribute.pk_product_attribute_id) %}
+                              {% set prefix = "v_" ~ variant.pk_product_variant_id ~ "_" ~ attribute.pk_product_attribute_id %}
+                              <tr>
+                                <td>
+                                  <span class="font-medium">{{ localized(attribute) }}</span>
+                                  <div class="text-2xs text-neutral-400" dir="ltr">{{ attribute.attribute_code }}</div>
+                                </td>
+                                <td>
+                                  {% if attribute.input_type == "dropdown" %}
+                                    <select name="{{ prefix }}_choice_id" class="input h-9 min-h-0 py-0 text-sm"
+                                            {% if not can_manage_attributes %}disabled{% endif %}>
+                                      <option value="">-</option>
+                                      {% for choice in row.choices %}
+                                        <option value="{{ choice.pk_product_attribute_choice_id }}"
+                                                {% if current and current.fk_product_attribute_choice_id == choice.pk_product_attribute_choice_id %}selected{% endif %}>
+                                          {{ localized(choice, "value") }}
+                                        </option>
+                                      {% endfor %}
+                                    </select>
+                                  {% else %}
+                                    <div class="grid gap-2 sm:grid-cols-2">
+                                      <input name="{{ prefix }}_value_ar" class="input h-9 min-h-0 py-0 text-sm"
+                                             value="{{ current.value_ar if current else '' }}"
+                                             aria-label="{{ t('catalog.value_ar') }}"
+                                             placeholder="{{ t('catalog.value_ar') }}"
+                                             {% if not can_manage_attributes %}readonly{% endif %}>
+                                      <input name="{{ prefix }}_value_en" class="input h-9 min-h-0 py-0 text-sm" dir="ltr"
+                                             value="{{ current.value_en if current else '' }}"
+                                             aria-label="{{ t('catalog.value_en') }}"
+                                             placeholder="{{ t('catalog.value_en') }}"
+                                             {% if not can_manage_attributes %}readonly{% endif %}>
+                                    </div>
+                                  {% endif %}
+                                </td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+
+            {% if can_manage_attributes %}
+              <button type="submit" class="btn-primary btn-sm">{{ t("common.save") }}</button>
+            {% endif %}
+          </form>
+        {% else %}
+          <div class="admin-panel__body">
+            <p class="text-sm text-neutral-500">{{ t("catalog.no_custom_details") }}</p>
+          </div>
+        {% endif %}
+
+        {% if can_manage_attributes %}
+          <form method="post"
+                action="/admin/products/{{ product.pk_product_id }}/attributes/definitions"
+                class="admin-panel__body space-y-3 border-t border-neutral-200 bg-neutral-50">
+            <div>
+              <h3 class="text-sm font-semibold text-navy-900">{{ t("catalog.new_custom_detail") }}</h3>
+              <p class="text-xs text-neutral-500">{{ t("catalog.new_custom_detail_hint") }}</p>
+            </div>
+            <div class="grid gap-3 lg:grid-cols-2">
+              <div>
+                <label for="new_attribute_name_ar" class="field-label field-required">{{ t("catalog.name_ar") }}</label>
+                <input id="new_attribute_name_ar" name="name_ar" class="input" required>
+              </div>
+              <div>
+                <label for="new_attribute_name_en" class="field-label field-required">{{ t("catalog.name_en") }}</label>
+                <input id="new_attribute_name_en" name="name_en" class="input" dir="ltr" required>
+              </div>
+              <div>
+                <label for="new_attribute_input_type" class="field-label">{{ t("catalog.attribute_type") }}</label>
+                <select id="new_attribute_input_type" name="input_type" class="input">
+                  {% for option in attribute_input_types %}
+                    <option value="{{ option.value }}">{{ t("catalog.attribute_type_" ~ option.value) }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label for="new_attribute_visibility" class="field-label">{{ t("catalog.visibility") }}</label>
+                <select id="new_attribute_visibility" name="visibility" class="input">
+                  {% for option in attribute_visibility_options %}
+                    <option value="{{ option.value }}">{{ t("catalog.attribute_visibility_" ~ option.value) }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <details>
+              <summary class="cursor-pointer text-xs font-medium text-neutral-500 hover:text-neutral-700">
+                {{ t("common.more") }}
+              </summary>
+              <div class="mt-3 grid gap-3 lg:grid-cols-2">
+                <div>
+                  <label for="new_attribute_code" class="field-label">{{ t("catalog.attribute_code") }}</label>
+                  <input id="new_attribute_code" name="attribute_code" class="input" dir="ltr"
+                         placeholder="{{ t('catalog.code_auto') }}">
+                </div>
+                <div>
+                  <label for="new_attribute_sort" class="field-label">{{ t("catalog.sort_order") }}</label>
+                  <input id="new_attribute_sort" name="sort_order" type="number" class="input" value="0" dir="ltr">
+                </div>
+                <div>
+                  <label for="new_attribute_choices_ar" class="field-label">{{ t("catalog.choices_ar") }}</label>
+                  <textarea id="new_attribute_choices_ar" name="choices_ar" rows="3" class="input"></textarea>
+                </div>
+                <div>
+                  <label for="new_attribute_choices_en" class="field-label">{{ t("catalog.choices_en") }}</label>
+                  <textarea id="new_attribute_choices_en" name="choices_en" rows="3" class="input" dir="ltr"></textarea>
+                </div>
+              </div>
+              <div class="mt-3 flex flex-wrap gap-4">
+                <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+                  <input type="checkbox" name="is_filterable" value="1"
+                         class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                  <span>{{ t("catalog.filterable") }}</span>
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+                  <input type="checkbox" name="is_comparable" value="1" checked
+                         class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                  <span>{{ t("catalog.comparable") }}</span>
+                </label>
+              </div>
+            </details>
+            <button type="submit" class="btn-secondary btn-sm">
+              {{ icon.plus(class="h-4 w-4") }} {{ t("catalog.new_custom_detail") }}
+            </button>
+          </form>
+        {% endif %}
+      </section>
+
+      {# ================= Variants (Part I §5.4) =========================
+         One form per row, each with its own Save, so correcting a single price
+         cannot rewrite the rest of the table. The bilingual name leads because
+         that is what staff and shoppers actually call the thing; the SKU is
+         stock-keeping detail and generates itself when left blank.
+      #}
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("catalog.variants") }}</h2>
+          {% if variants %}
+            <span class="badge-neutral">{{ t("catalog.variant_count", count=num(variants | length)) }}</span>
+          {% endif %}
+        </div>
+
+        {% if variants %}
+          <div class="divide-y divide-neutral-200">
+            {% for variant in variants %}
+              <div x-data="{ dirty: false }">
+                <form method="post"
+                      action="/admin/products/{{ product.pk_product_id }}/variants/{{ variant.pk_product_variant_id }}"
+                      class="admin-panel__body space-y-3"
+                      @input="dirty = true" @change="dirty = true">
+
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h3 class="text-sm font-semibold text-navy-900">
+                      {% if variant.name_ar or variant.name_en %}
+                        {{ localized(variant) }}
+                      {% else %}
+                        <span class="text-neutral-400">{{ t("catalog.unnamed_variant") }}</span>
+                      {% endif %}
+                    </h3>
+                    <span class="text-2xs text-neutral-400" dir="ltr">{{ variant.sku }}</span>
+                    {% if variant.is_active_flag %}
+                      <span class="badge-success">{{ t("catalog.active") }}</span>
+                    {% else %}
+                      <span class="badge-neutral">{{ t("catalog.inactive") }}</span>
+                    {% endif %}
+                    <span x-show="dirty" x-cloak class="badge-warning">{{ t("catalog.unsaved_changes") }}</span>
+                  </div>
+
+                  <div class="grid gap-3 lg:grid-cols-3">
+                    <div>
+                      <label class="field-label" for="v{{ variant.pk_product_variant_id }}_name_ar">
+                        {{ t("catalog.variant_name_ar") }}
+                      </label>
+                      <input id="v{{ variant.pk_product_variant_id }}_name_ar" name="name_ar" class="input"
+                             value="{{ variant.name_ar or '' }}"
+                             placeholder="{{ t('catalog.variant_name_hint') }}">
+                    </div>
+                    <div>
+                      <label class="field-label" for="v{{ variant.pk_product_variant_id }}_name_en">
+                        {{ t("catalog.variant_name_en") }}
+                      </label>
+                      <input id="v{{ variant.pk_product_variant_id }}_name_en" name="name_en" class="input" dir="ltr"
+                             value="{{ variant.name_en or '' }}"
+                             placeholder="{{ t('catalog.variant_name_hint') }}">
+                    </div>
+                    <div>
+                      <label class="field-label" for="v{{ variant.pk_product_variant_id }}_price">
+                        {{ t("catalog.price_override") }}
+                        <span class="text-neutral-400">({{ t("catalog.optional") }})</span>
+                      </label>
+                      <input id="v{{ variant.pk_product_variant_id }}_price" name="price_override_amt" class="input"
+                             inputmode="decimal" dir="ltr"
+                             value="{{ variant.price_override_amt if variant.price_override_amt is not none else '' }}">
+                    </div>
+                  </div>
+
+                  <details>
+                    <summary class="cursor-pointer text-xs font-medium text-neutral-500 hover:text-neutral-700">
+                      {{ t("common.more") }}
+                    </summary>
+                    <div class="mt-3 grid gap-3 lg:grid-cols-4">
+                      <div>
+                        <label class="field-label" for="v{{ variant.pk_product_variant_id }}_sku">SKU</label>
+                        <input id="v{{ variant.pk_product_variant_id }}_sku" name="sku" class="input" dir="ltr"
+                               value="{{ variant.sku }}">
+                      </div>
+                      <div>
+                        <label class="field-label" for="v{{ variant.pk_product_variant_id }}_barcode">
+                          {{ t("catalog.barcode") }}
+                        </label>
+                        <input id="v{{ variant.pk_product_variant_id }}_barcode" name="barcode" class="input" dir="ltr"
+                               value="{{ variant.barcode or '' }}">
+                      </div>
+                      <div>
+                        <label class="field-label" for="v{{ variant.pk_product_variant_id }}_weight">
+                          {{ t("catalog.weight") }}
+                        </label>
+                        <input id="v{{ variant.pk_product_variant_id }}_weight" name="weight_grams" type="number"
+                               class="input" dir="ltr" value="{{ variant.weight_grams or '' }}">
+                      </div>
+                      <div>
+                        <label class="field-label" for="v{{ variant.pk_product_variant_id }}_sort">
+                          {{ t("catalog.sort_order") }}
+                        </label>
+                        <input id="v{{ variant.pk_product_variant_id }}_sort" name="sort_order" type="number"
+                               class="input" dir="ltr" value="{{ variant.sort_order }}">
+                      </div>
+                    </div>
+                  </details>
+
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+                      <input type="checkbox" name="is_active" value="1"
+                             {% if variant.is_active_flag %}checked{% endif %}
+                             class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                      <span>{{ t("catalog.active") }}</span>
+                    </label>
+                    <button type="submit" class="btn-primary btn-sm">{{ t("catalog.save_variant") }}</button>
+                  </div>
+                </form>
+
+                {# Retire is its own form: a destructive action must never ride
+                   along on the Save button of the row it would close. #}
+                <form method="post"
+                      action="/admin/products/{{ product.pk_product_id }}/variants/{{ variant.pk_product_variant_id }}/close"
+                      data-confirm="{{ t('catalog.confirm_close_variant') }}"
+                      class="-mt-1 px-4 pb-4">
+                  <button type="submit" class="text-xs font-medium text-danger-600 hover:underline">
+                    {{ t("catalog.retire") }}
+                  </button>
+                </form>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="admin-panel__body">
+            <p class="text-sm text-neutral-500">{{ t("catalog.no_variants") }}</p>
+            <p class="mt-1 text-xs text-neutral-400">{{ t("catalog.no_variants_hint") }}</p>
+          </div>
+        {% endif %}
+
+        {# --- Add one ------------------------------------------------------ #}
+        <form method="post" action="/admin/products/{{ product.pk_product_id }}/variants"
+              class="admin-panel__body space-y-3 border-t border-neutral-200 bg-neutral-50">
+          <div>
+            <h3 class="text-sm font-semibold text-navy-900">{{ t("catalog.add_variant") }}</h3>
+            <p class="text-xs text-neutral-500">{{ t("catalog.add_variant_hint") }}</p>
+          </div>
+          <div class="grid gap-3 lg:grid-cols-3">
+            <div>
+              <label for="new_variant_name_ar" class="field-label">{{ t("catalog.variant_name_ar") }}</label>
+              <input id="new_variant_name_ar" name="name_ar" class="input"
+                     placeholder="{{ t('catalog.variant_name_hint') }}">
+            </div>
+            <div>
+              <label for="new_variant_name_en" class="field-label">{{ t("catalog.variant_name_en") }}</label>
+              <input id="new_variant_name_en" name="name_en" class="input" dir="ltr"
+                     placeholder="{{ t('catalog.variant_name_hint') }}">
+            </div>
+            <div>
+              <label for="new_variant_price" class="field-label">
+                {{ t("catalog.price_override") }}
+                <span class="text-neutral-400">({{ t("catalog.optional") }})</span>
+              </label>
+              <input id="new_variant_price" name="price_override_amt" class="input" inputmode="decimal" dir="ltr">
+            </div>
+          </div>
+          <details>
+            <summary class="cursor-pointer text-xs font-medium text-neutral-500 hover:text-neutral-700">
+              {{ t("common.more") }}
+            </summary>
+            <div class="mt-3 grid gap-3 lg:grid-cols-4">
+              <div>
+                <label for="new_variant_sku" class="field-label">SKU</label>
+                <input id="new_variant_sku" name="sku" class="input" dir="ltr"
+                       placeholder="{{ t('catalog.sku_auto_hint') }}">
+              </div>
+              <div>
+                <label for="new_variant_barcode" class="field-label">{{ t("catalog.barcode") }}</label>
+                <input id="new_variant_barcode" name="barcode" class="input" dir="ltr">
+              </div>
+              <div>
+                <label for="new_variant_weight" class="field-label">{{ t("catalog.weight") }}</label>
+                <input id="new_variant_weight" name="weight_grams" type="number" class="input" dir="ltr">
+              </div>
+              <div>
+                <label for="new_variant_sort" class="field-label">{{ t("catalog.sort_order") }}</label>
+                <input id="new_variant_sort" name="sort_order" type="number" class="input" value="0" dir="ltr">
+              </div>
+            </div>
+          </details>
+          <input type="hidden" name="is_active" value="1">
+          <button type="submit" class="btn-secondary btn-sm">
+            {{ icon.plus(class="h-4 w-4") }} {{ t("catalog.add_variant") }}
+          </button>
+        </form>
+      </section>
+    </div>
+
+    <aside class="space-y-4">
+      {# ================= Images (Part I §5.2, §17.4) ====================
+         The file goes straight to the upload endpoint the moment it is picked
+         — staff never see, type, or need to know a storage path. Each form
+         posts on change, so there is no "upload" button to forget and no way
+         to leave the page thinking a photo was attached when it was not.
+      #}
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("catalog.main_image") }}</h2>
+          <span class="badge-neutral">{{ t("catalog.uploads_immediately") }}</span>
+        </div>
+        <div class="admin-panel__body space-y-3">
+          <div class="flex items-start gap-3">
+            <div class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden
+                        rounded-card border border-neutral-200 bg-neutral-50">
+              {% if product.main_image_path %}
+                <img src="{{ media(product.main_image_path) }}"
+                     alt="{{ localized(product) }}" class="h-full w-full object-cover">
+              {% else %}
+                <span class="px-2 text-center text-2xs text-neutral-400">{{ t("catalog.no_image") }}</span>
+              {% endif %}
+            </div>
+            <form method="post" enctype="multipart/form-data"
+                  action="/admin/uploads/products/{{ product.pk_product_id }}/main"
+                  class="min-w-0 flex-1 space-y-2"
+                  x-data @change="$el.requestSubmit()">
+              <label for="main_image_file" class="field-label">
+                {% if product.main_image_path %}{{ t("catalog.replace_image") }}{% else %}{{ t("catalog.upload_image") }}{% endif %}
+              </label>
+              <input id="main_image_file" name="image" type="file" accept="image/*" required
+                     class="block w-full text-xs text-neutral-600 file:me-3 file:rounded-control
+                            file:border-0 file:bg-secondary-600 file:px-3 file:py-2
+                            file:text-xs file:font-medium file:text-white hover:file:bg-secondary-700">
+              {# Submitting on change is the whole point, but a keyboard user who
+                 never fires `change` still needs a way through. #}
+              <noscript><button type="submit" class="btn-secondary btn-sm">{{ t("catalog.upload_image") }}</button></noscript>
+            </form>
+          </div>
+          <p class="text-2xs text-neutral-500">{{ t("catalog.image_upload_hint") }}</p>
+        </div>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("catalog.gallery") }}</h2>
+          <span class="badge-neutral">{{ t("catalog.uploads_immediately") }}</span>
+        </div>
+        <div class="admin-panel__body space-y-3">
+          {% if images %}
+            <ul class="space-y-3">
+              {% for image in images %}
+                <li class="flex items-start gap-3">
+                  <img src="{{ media(image.image_path) }}"
+                       alt="{{ image.alt_text_en or image.alt_text_ar or '' }}"
+                       class="h-16 w-16 shrink-0 rounded-card border border-neutral-200 object-cover">
+                  <div class="min-w-0 flex-1 space-y-2">
+                    {% if image.fk_product_variant_id %}
+                      <span class="badge-neutral">{{ t("catalog.variant_image") }}</span>
+                    {% endif %}
+                    <form method="post" action="/admin/uploads/products/images/{{ image.pk_product_image_id }}/alt"
+                          class="space-y-1.5">
+                      <input name="alt_text_ar" class="input h-9 min-h-0 py-0 text-xs"
+                             value="{{ image.alt_text_ar or '' }}"
+                             aria-label="{{ t('catalog.alt_text_ar') }}"
+                             placeholder="{{ t('catalog.alt_text_ar') }}">
+                      <input name="alt_text_en" class="input h-9 min-h-0 py-0 text-xs" dir="ltr"
+                             value="{{ image.alt_text_en or '' }}"
+                             aria-label="{{ t('catalog.alt_text_en') }}"
+                             placeholder="{{ t('catalog.alt_text_en') }}">
+                      <button type="submit" class="text-2xs font-medium text-secondary-700 hover:underline">
+                        {{ t("catalog.save_alt") }}
+                      </button>
+                    </form>
+                  </div>
+                  <form method="post" action="/admin/uploads/products/images/{{ image.pk_product_image_id }}/remove"
+                        data-confirm="{{ t('catalog.confirm_remove_image') }}">
+                    <button type="submit" class="text-xs font-medium text-danger-600 hover:underline">
+                      {{ t("catalog.remove_image") }}
+                    </button>
+                  </form>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-sm text-neutral-500">{{ t("catalog.no_gallery_images") }}</p>
+          {% endif %}
+
+          <form method="post" enctype="multipart/form-data"
+                action="/admin/uploads/products/{{ product.pk_product_id }}/gallery"
+                class="space-y-2 border-t border-neutral-200 pt-3"
+                x-data @change="$el.requestSubmit()">
+            <label for="gallery_files" class="field-label">{{ t("catalog.add_images") }}</label>
+            <input id="gallery_files" name="images" type="file" accept="image/*" multiple required
+                   class="block w-full text-xs text-neutral-600 file:me-3 file:rounded-control
+                          file:border-0 file:bg-secondary-600 file:px-3 file:py-2
+                          file:text-xs file:font-medium file:text-white hover:file:bg-secondary-700">
+            {% if variants %}
+              <label for="gallery_variant" class="field-label">
+                {{ t("catalog.variant_image") }} <span class="text-neutral-400">({{ t("catalog.optional") }})</span>
+              </label>
+              <select id="gallery_variant" name="variant_id" class="input h-9 min-h-0 py-0 text-xs">
+                <option value="">{{ t("catalog.gallery") }}</option>
+                {% for variant in variants %}
+                  <option value="{{ variant.pk_product_variant_id }}">
+                    {% if variant.name_ar or variant.name_en %}{{ localized(variant) }}{% else %}{{ variant.sku }}{% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            {% endif %}
+            <noscript><button type="submit" class="btn-secondary btn-sm">{{ t("catalog.add_images") }}</button></noscript>
+          </form>
+        </div>
+      </section>
+
+      {# Tags (Part I §15). The model, the /tag pages and the search index all
+         read tags and always did; nothing wrote them, so `lkp_tag` shipped
+         empty and the tag pages were unreachable. This is the writing end. #}
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("catalog.product_tags") }}</h2>
+          <a href="/admin/products/tags"
+             class="ms-auto text-xs font-semibold text-secondary-700 hover:underline">
+            {{ t("catalog.tags") }}
+          </a>
+        </div>
+        <div class="admin-panel__body">
+          {% if all_tags %}
+            <form method="post" action="/admin/products/{{ product.pk_product_id }}/tags"
+                  class="space-y-3">
+              <p class="field-hint">{{ t("catalog.product_tags_hint") }}</p>
+              {# Checkboxes rather than a multi-select: §17.4 replaces the old
+                 long unstyled option lists, and a shop with a dozen tags reads
+                 far faster as a wrapped set of labels than as a scroll box. #}
+              <div class="flex flex-wrap gap-2">
+                {% for row in all_tags %}
+                  <label class="inline-flex items-center gap-1.5 rounded-control border
+                                border-neutral-200 px-2 py-1 text-xs
+                                hover:border-secondary-300">
+                    <input type="checkbox" name="tag_ids" value="{{ row.tag.pk_tag_id }}"
+                           {% if row.tag.pk_tag_id in product_tag_ids %}checked{% endif %}
+                           {% if not can_manage_tags %}disabled{% endif %}
+                           class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                    <span>{{ localized(row.tag) }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+              {% if can_manage_tags %}
+                <button type="submit" class="btn-outline btn-sm">{{ t("common.save") }}</button>
+              {% endif %}
+            </form>
+          {% else %}
+            <p class="text-sm text-neutral-500">
+              {{ t("catalog.no_tags") }} &mdash;
+              <a href="/admin/products/tags" class="link">{{ t("catalog.new_tag") }}</a>
+            </p>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("catalog.price") }}</h2>
+        </div>
+        <form method="post" action="/admin/products/{{ product.pk_product_id }}/price" class="admin-panel__body space-y-3">
+          <div>
+            <label for="base_price_amt" class="field-label">{{ t("admin.unit_price") }}</label>
+            <input id="base_price_amt" name="base_price_amt" class="input" inputmode="decimal" required dir="ltr" value="{{ product.base_price_amt }}">
+          </div>
+          <button type="submit" class="btn-primary btn-sm">{{ t("catalog.change_price") }}</button>
+        </form>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("catalog.discounts") }}</h2>
+        </div>
+        {% if discounts %}
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>{{ t("catalog.discount") }}</th>
+                  <th>{{ t("catalog.value") }}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for discount in discounts %}
+                  <tr>
+                    <td>{{ localized(discount) }}</td>
+                    <td>
+                      {% if discount.discount_kind == "percentage" %}
+                        {{ num(discount.percentage, 2) }}%
+                      {% else %}
+                        {{ money(discount.fixed_price_amt) }}
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      <form method="post" action="/admin/products/{{ product.pk_product_id }}/discounts/{{ discount.pk_discount_id }}/close" data-confirm="{{ t('catalog.confirm_close_discount') }}">
+                        <button type="submit" class="btn-outline btn-sm">{{ t("common.close") }}</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+        <form method="post" action="/admin/products/{{ product.pk_product_id }}/discounts" class="admin-panel__body space-y-3 border-t border-neutral-200">
+          <div>
+            <label for="discount_name_ar" class="field-label">{{ t("catalog.discount_name_ar") }}</label>
+            <input id="discount_name_ar" name="discount_name_ar" class="input" required>
+          </div>
+          <div>
+            <label for="discount_name_en" class="field-label">{{ t("catalog.discount_name_en") }}</label>
+            <input id="discount_name_en" name="discount_name_en" class="input" required dir="ltr">
+          </div>
+          <div>
+            <label for="discount_kind" class="field-label">{{ t("catalog.discount_kind") }}</label>
+            <select id="discount_kind" name="discount_kind" class="input">
+              {% for kind in discount_kinds %}
+                <option value="{{ kind.value }}">{{ t("catalog.discount_kind_" ~ kind.value) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="percentage" class="field-label">{{ t("catalog.percentage") }}</label>
+              <input id="percentage" name="percentage" class="input" inputmode="decimal" dir="ltr">
+            </div>
+            <div>
+              <label for="fixed_price_amt" class="field-label">{{ t("catalog.fixed_price") }}</label>
+              <input id="fixed_price_amt" name="fixed_price_amt" class="input" inputmode="decimal" dir="ltr">
+            </div>
+          </div>
+          <button type="submit" class="btn-secondary btn-sm">{{ t("catalog.add_discount") }}</button>
+        </form>
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}

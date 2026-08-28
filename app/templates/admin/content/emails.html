@@ -1,0 +1,114 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Transactional email templates (Part I §2.7).
+
+   §2.7 splits ownership: the system defines the required technical fields (a
+   reset link, an expiry), Admin owns the wording and branding around them. The
+   required tokens are shown per template, and a save that drops one is
+   rejected rather than discovered later by a locked-out customer.
+#}
+
+{% block title %}{{ t("content.emails") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4" x-data="{ open: null }">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("content.emails"), subtitle = t("content.emails_purpose"),
+          back_href = "/admin/content", back_label = t("admin.content") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  {% if error %}
+    <div class="flex items-start gap-2 rounded-card border border-danger-100 bg-danger-50 p-3
+                text-sm text-danger-700" role="alert">
+      {{ icon.alert(class="h-4 w-4 shrink-0") }}
+      <p>{{ error }}</p>
+    </div>
+  {% endif %}
+
+  {% if missing %}
+    <div class="rounded-card border border-warning-100 bg-warning-50 p-3 text-sm text-warning-700">
+      {{ t("content.missing_templates") }}: <span dir="ltr">{{ missing | join(", ") }}</span>
+    </div>
+  {% endif %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("content.emails") }}</h2>
+    </div>
+    <div class="admin-panel__body space-y-2">
+      {% for template in email_templates %}
+        <div class="rounded-control border border-neutral-200">
+          <div class="flex flex-wrap items-center gap-2 p-3">
+            <span class="text-sm font-medium text-navy-900" dir="ltr">
+              {{ template.template_code }}
+            </span>
+            {% if not template.is_enabled_flag %}
+              <span class="badge-neutral">{{ t("content.disabled") }}</span>
+            {% endif %}
+            {% if template.required_placeholders %}
+              <span class="badge-warning" dir="ltr" title="{{ t('content.required_tokens') }}">
+                {{ template.required_placeholders }}
+              </span>
+            {% endif %}
+            <button type="button" class="btn-ghost btn-sm ms-auto"
+                    @click="open = open === {{ template.pk_email_template_id }}
+                                   ? null : {{ template.pk_email_template_id }}">
+              {{ t("content.edit") }}
+            </button>
+          </div>
+
+          <form x-show="open === {{ template.pk_email_template_id }}" x-cloak
+                method="post" action="/admin/content/emails/{{ template.template_code }}"
+                class="grid gap-3 border-t border-neutral-200 p-3 sm:grid-cols-2">
+            <div>
+              <label class="field-label">{{ t("content.subject_ar") }}</label>
+              <input name="subject_ar" type="text" value="{{ template.subject_ar }}"
+                     class="input h-9 min-h-0 py-0 text-sm">
+            </div>
+            <div>
+              <label class="field-label">{{ t("content.subject_en") }}</label>
+              <input name="subject_en" type="text" dir="ltr" value="{{ template.subject_en }}"
+                     class="input h-9 min-h-0 py-0 text-sm">
+            </div>
+            <div>
+              <label class="field-label">{{ t("content.body_ar") }}</label>
+              <textarea name="body_ar" rows="6" class="input text-sm">{{ template.body_ar }}</textarea>
+            </div>
+            <div>
+              <label class="field-label">{{ t("content.body_en") }}</label>
+              <textarea name="body_en" rows="6" dir="ltr" class="input text-sm">{{ template.body_en }}</textarea>
+            </div>
+
+            {% if template.required_placeholders %}
+              <p class="sm:col-span-2 field-hint">
+                {{ t("content.tokens_hint") }}
+                <code dir="ltr">
+                  {%- for token in template.required_placeholders.split(",") -%}
+                    {{ "{" }}{{ token.strip() }}{{ "}" }}{% if not loop.last %}, {% endif %}
+                  {%- endfor -%}
+                </code>
+              </p>
+            {% endif %}
+
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="is_enabled" value="1"
+                     {% if template.is_enabled_flag %}checked{% endif %}
+                     class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+              {{ t("content.enabled") }}
+            </label>
+            <div class="flex items-end justify-end">
+              <button type="submit" class="btn-primary btn-sm">{{ t("common.save") }}</button>
+            </div>
+          </form>
+        </div>
+      {% else %}
+        <p class="text-sm text-neutral-500">{{ t("listing.no_results") }}</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

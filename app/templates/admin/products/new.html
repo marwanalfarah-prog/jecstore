@@ -1,0 +1,118 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("catalog.new_product") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl space-y-4">
+  {% with title = t("catalog.new_product"), subtitle = t("catalog.new_product_purpose"),
+          back_href = "/admin/products", back_label = t("admin.products") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("catalog.new_product") }}</h2>
+    </div>
+    <form method="post" class="admin-panel__body space-y-4">
+      <div class="grid gap-4 lg:grid-cols-2">
+        <div>
+          <label for="name_ar" class="field-label">{{ t("catalog.name_ar") }}</label>
+          <input id="name_ar" name="name_ar" class="input" required>
+        </div>
+        <div>
+          <label for="name_en" class="field-label">{{ t("catalog.name_en") }}</label>
+          <input id="name_en" name="name_en" class="input" required dir="ltr">
+        </div>
+        <div>
+          <label for="base_price_amt" class="field-label">{{ t("admin.unit_price") }}</label>
+          <input id="base_price_amt" name="base_price_amt" class="input" inputmode="decimal" required dir="ltr">
+        </div>
+        <div>
+          <label for="sku" class="field-label">SKU</label>
+          <input id="sku" name="sku" class="input" dir="ltr" placeholder="JEC-000001">
+        </div>
+        <div>
+          <label for="category_id" class="field-label">{{ t("admin.categories") }}</label>
+          <select id="category_id" name="category_id" class="input">
+            <option value="">{{ t("listing.all") }}</option>
+            {% for category in categories %}
+              <option value="{{ category.pk_category_id }}">{{ "-- " * category.depth }}{{ localized(category) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="publisher_id" class="field-label">{{ t("catalog.publisher") }}</label>
+          <select id="publisher_id" name="publisher_id" class="input">
+            <option value="">{{ t("listing.all") }}</option>
+            {% for publisher in publishers %}
+              <option value="{{ publisher.pk_publisher_id }}">{{ localized(publisher) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="isbn" class="field-label">{{ t("product.isbn") }}</label>
+          <input id="isbn" name="isbn" class="input" dir="ltr">
+        </div>
+        <div>
+          <label for="barcode" class="field-label">{{ t("catalog.barcode") }}</label>
+          <input id="barcode" name="barcode" class="input" dir="ltr">
+        </div>
+        <div>
+          <label for="slug_ar" class="field-label">{{ t("catalog.slug_ar") }}</label>
+          <input id="slug_ar" name="slug_ar" class="input">
+        </div>
+        <div>
+          <label for="slug_en" class="field-label">{{ t("catalog.slug_en") }}</label>
+          <input id="slug_en" name="slug_en" class="input" dir="ltr">
+        </div>
+        <div>
+          <label for="short_description_ar" class="field-label">{{ t("catalog.short_description_ar") }}</label>
+          <textarea id="short_description_ar" name="short_description_ar" rows="2" class="input"></textarea>
+        </div>
+        <div>
+          <label for="short_description_en" class="field-label">{{ t("catalog.short_description_en") }}</label>
+          <textarea id="short_description_en" name="short_description_en" rows="2" class="input" dir="ltr"></textarea>
+        </div>
+        <div>
+          <label for="description_ar" class="field-label">{{ t("catalog.description_ar") }}</label>
+          <textarea id="description_ar" name="description_ar" rows="5" class="input"></textarea>
+        </div>
+        <div>
+          <label for="description_en" class="field-label">{{ t("catalog.description_en") }}</label>
+          <textarea id="description_en" name="description_en" rows="5" class="input" dir="ltr"></textarea>
+        </div>
+        <div>
+          <label for="main_image_path" class="field-label">{{ t("catalog.image_path") }}</label>
+          <input id="main_image_path" name="main_image_path" class="input" dir="ltr">
+        </div>
+        <div>
+          <label for="discount_overlap_rule" class="field-label">{{ t("catalog.overlap_rule") }}</label>
+          <select id="discount_overlap_rule" name="discount_overlap_rule" class="input">
+            {% for rule in overlap_rules %}
+              <option value="{{ rule.value }}">{{ t("catalog.overlap_" ~ rule.value) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-4">
+        <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+          <input type="checkbox" name="is_visible" value="1" checked class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+          <span>{{ t("catalog.visible") }}</span>
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+          <input type="checkbox" name="published" value="1" class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+          <span>{{ t("catalog.published") }}</span>
+        </label>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="submit" class="btn-primary btn-sm">
+          {{ icon.plus(class="h-4 w-4") }} {{ t("catalog.create_product") }}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

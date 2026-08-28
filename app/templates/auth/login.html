@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Split-screen login/register — a familiar, low-friction pattern worth keeping
+   rather than replacing with one combined form (Part I §17.3). On mobile the
+   two panels stack, returning customer first.
+#}
+
+{% block title %}{{ t("auth.login_title") }} — {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-8 lg:py-14">
+  <div class="mx-auto grid max-w-4xl gap-6 lg:grid-cols-2">
+
+    {# --- Returning customer ------------------------------------------- #}
+    <section class="card p-6 lg:p-8">
+      <h1 class="text-2xl">{{ t("auth.login_title") }}</h1>
+      <p class="mt-1 text-sm text-neutral-500">{{ t("auth.login_subtitle") }}</p>
+
+      {% if error %}
+        <div class="mt-5 flex items-start gap-2 rounded-control bg-danger-50 p-3 text-sm text-danger-700"
+             role="alert">
+          {{ icon.alert(class="h-4 w-4 shrink-0 mt-0.5") }}
+          <p>{{ error }}</p>
+        </div>
+      {% endif %}
+
+      <form method="post" action="/auth/login" class="mt-6 space-y-4">
+        <input type="hidden" name="next" value="{{ next_url | default('/') }}">
+
+        <div>
+          <label for="identifier" class="field-label">{{ t("auth.username_or_email") }}</label>
+          <input id="identifier" name="identifier" type="text" required autofocus
+                 autocomplete="username" autocapitalize="none" spellcheck="false"
+                 class="input {% if error %}input-error{% endif %}"
+                 value="{{ identifier | default('') }}">
+        </div>
+
+        <div>
+          <label for="password" class="field-label">{{ t("auth.password") }}</label>
+          <input id="password" name="password" type="password" required
+                 autocomplete="current-password"
+                 class="input {% if error %}input-error{% endif %}">
+        </div>
+
+        {# CAPTCHA appears only after repeated failures, so legitimate users
+           are not taxed on every attempt (Part I §2.4). #}
+        {% if captcha_required %}
+          <div class="rounded-control border border-neutral-200 bg-neutral-50 p-3">
+            {% include "partials/captcha.html" %}
+          </div>
+        {% endif %}
+
+        <div class="flex items-center justify-between gap-3">
+          <label class="flex items-center gap-2 text-sm text-neutral-600">
+            <input type="checkbox" name="remember" value="1"
+                   class="form-checkbox rounded border-neutral-300 text-primary-600
+                          focus:ring-secondary-600">
+            {{ t("auth.remember_me") }}
+          </label>
+          <a href="/auth/forgot-password" class="link text-sm">{{ t("auth.forgot_password") }}</a>
+        </div>
+
+        <button type="submit" class="btn-primary btn-block btn-lg">{{ t("auth.submit_login") }}</button>
+      </form>
+    </section>
+
+    {# --- New customer -------------------------------------------------- #}
+    <section class="card flex flex-col justify-center bg-gradient-to-br from-secondary-600
+                    to-secondary-800 p-6 text-white lg:p-8">
+      <h2 class="text-2xl font-bold">{{ t("auth.register_title") }}</h2>
+      <p class="mt-2 text-white/85">{{ t("auth.register_subtitle") }}</p>
+
+      <ul class="mt-6 space-y-3 text-sm text-white/90">
+        <li class="flex items-start gap-2.5">
+          {{ icon.receipt(class="h-5 w-5 shrink-0 text-white/70") }}
+          <span>{{ t("header.orders") }}</span>
+        </li>
+        <li class="flex items-start gap-2.5">
+          {{ icon.heart(class="h-5 w-5 shrink-0 text-white/70") }}
+          <span>{{ t("header.wishlist") }}</span>
+        </li>
+        <li class="flex items-start gap-2.5">
+          {{ icon.wallet(class="h-5 w-5 shrink-0 text-white/70") }}
+          <span>{{ t("header.store_credit") }}</span>
+        </li>
+      </ul>
+
+      <a href="/auth/register"
+         class="btn btn-lg mt-8 bg-white text-secondary-700 hover:bg-neutral-100">
+        {{ t("auth.submit_register") }}
+        {{ icon.chevron_forward(class="h-4 w-4") }}
+      </a>
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,596 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   Base — the things every page inherits.
+
+   Written with logical properties throughout (inline-start/end rather than
+   left/right) so one stylesheet serves both directions. Part I §17 asks for
+   RTL to be handled properly, not bolted on, and a stylesheet that mirrors
+   itself is what that means in practice.
+   ========================================================================== */
+
+@layer base {
+  :root {
+    --header-utility-height: 2.25rem;
+    --header-main-height: 4rem;
+    --focus-ring: theme("colors.secondary.600");
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    @apply bg-neutral-100 text-neutral-800 font-sans text-base antialiased;
+    /* Arabic sits lower and needs a little more line height than Latin at the
+       same size; this is the site-wide baseline both scripts are tuned to. */
+    line-height: 1.65;
+  }
+
+  /* Arabic headings carry more visual weight at the same numeric size, so they
+     are set one notch lighter than their Latin counterparts. */
+  [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3 { font-weight: 600; }
+  [dir="ltr"] h1, [dir="ltr"] h2, [dir="ltr"] h3 { font-weight: 700; }
+
+  h1 { @apply text-3xl md:text-4xl text-navy-900 tracking-tight; }
+  h2 { @apply text-2xl md:text-3xl text-navy-900 tracking-tight; }
+  h3 { @apply text-xl text-navy-900; }
+
+  /* Prices and quantities use tabular figures so columns don't jitter as
+     digits change — and so Arabic-Indic numerals align the same way. */
+  .tabular, td.tabular, .price { font-variant-numeric: tabular-nums; }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Never remove focus styling; only relocate it. */
+  :focus:not(:focus-visible) { outline: none; }
+
+  ::selection { @apply bg-primary-100 text-primary-900; }
+}
+
+/* ==========================================================================
+   Components — one definition per pattern, used everywhere.
+
+   §17.7 requires that the same button style always means the same kind of
+   action. That only holds if there is exactly one place each style is defined.
+   ========================================================================== */
+
+@layer components {
+
+  .container-site {
+    @apply mx-auto w-full max-w-content px-4 sm:px-6 lg:px-8;
+  }
+
+  /* --- Buttons ---------------------------------------------------------- */
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-control
+           font-semibold leading-none transition
+           disabled:cursor-not-allowed disabled:opacity-50;
+    /* 44px minimum: a real tap target, not a resized desktop control (§17.5). */
+    min-height: 2.75rem;
+    padding-inline: 1.125rem;
+  }
+
+  /* Primary = commit to something. Add to cart, place order, save. */
+  .btn-primary {
+    @apply btn bg-primary-600 text-white shadow-sm
+           hover:bg-primary-700 active:bg-primary-800
+           disabled:hover:bg-primary-600;
+  }
+
+  /* Secondary = navigate or reveal. Never a commitment. */
+  .btn-secondary {
+    @apply btn bg-secondary-600 text-white shadow-sm
+           hover:bg-secondary-700 active:bg-secondary-800;
+  }
+
+  .btn-outline {
+    @apply btn border border-neutral-300 bg-white text-neutral-700
+           hover:border-neutral-400 hover:bg-neutral-50 active:bg-neutral-100;
+  }
+
+  .btn-ghost {
+    @apply btn text-neutral-600 hover:bg-neutral-200/70 active:bg-neutral-200;
+  }
+
+  .btn-danger {
+    @apply btn bg-danger-600 text-white hover:bg-danger-700;
+  }
+
+  .btn-sm { min-height: 2.25rem; @apply text-sm; padding-inline: 0.875rem; }
+  .btn-lg { min-height: 3.25rem; @apply text-lg; padding-inline: 1.75rem; }
+  .btn-block { @apply w-full; }
+
+  /* Icon-only control. Square, and still 44px on touch. */
+  .btn-icon {
+    @apply inline-flex items-center justify-center rounded-control
+           text-neutral-600 transition hover:bg-neutral-200/70 hover:text-navy-900;
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  /* --- Forms ------------------------------------------------------------ */
+
+  .field-label {
+    @apply mb-1.5 block text-sm font-medium text-neutral-700;
+  }
+
+  .field-optional {
+    @apply ms-1 text-xs font-normal text-neutral-500;
+  }
+
+  .input {
+    @apply block w-full rounded-control border border-neutral-300 bg-white px-3 py-2 text-base
+           text-neutral-900 placeholder:text-neutral-400
+           focus:border-secondary-600 focus:ring-1 focus:ring-secondary-600;
+    min-height: 2.75rem;
+  }
+
+  .input-error {
+    @apply border-danger-600 focus:border-danger-600 focus:ring-danger-600;
+  }
+
+  .field-error {
+    @apply mt-1.5 flex items-start gap-1.5 text-sm text-danger-600;
+  }
+
+  .field-hint {
+    @apply mt-1.5 text-sm text-neutral-500;
+  }
+
+  /* --- Badges ----------------------------------------------------------- */
+  /* The red/blue pairing is a pattern customers already read: blue = new,
+     red = discount. §17.1 says it is worth preserving, so it is. */
+
+  .badge {
+    @apply inline-flex items-center rounded px-2 py-1 text-2xs font-bold
+           uppercase leading-none tracking-wide;
+  }
+  .badge-new       { @apply badge bg-secondary-600 text-white; }
+  .badge-discount  { @apply badge bg-primary-600 text-white; }
+  .badge-success   { @apply badge bg-success-100 text-success-700; }
+  .badge-warning   { @apply badge bg-warning-100 text-warning-700; }
+  .badge-danger    { @apply badge bg-danger-100 text-danger-700; }
+  .badge-neutral   { @apply badge bg-neutral-200 text-neutral-700; }
+
+  /* --- Section header --------------------------------------------------- */
+  /* The old site's flat crimson bar, sharpened. The rule runs from the title
+     to the end of the row and thins as it goes, which reads as a deliberate
+     device rather than a filled box — and it mirrors correctly in RTL because
+     it is built from logical properties and a direction-agnostic gradient. */
+
+  .section-head {
+    @apply mb-6 flex items-center gap-4;
+  }
+  .section-head__title {
+    @apply text-2xl font-bold tracking-tight text-navy-900 whitespace-nowrap;
+  }
+  .section-head__rule {
+    @apply h-px flex-1 bg-gradient-to-r from-primary-600/60 to-transparent;
+  }
+  [dir="rtl"] .section-head__rule {
+    @apply bg-gradient-to-l;
+  }
+  .section-head__link {
+    @apply text-sm font-semibold text-secondary-700 whitespace-nowrap
+           hover:text-secondary-800 hover:underline;
+  }
+
+  /* --- Cards ------------------------------------------------------------ */
+
+  .card {
+    @apply rounded-card border border-neutral-200 bg-white shadow-card;
+  }
+
+  /* Pair with `group` in the markup — Tailwind cannot @apply a variant marker,
+     so the card element carries `class="product-card group"`. */
+  .product-card {
+    @apply relative flex flex-col overflow-hidden rounded-card
+           border border-neutral-200 bg-white shadow-card transition
+           hover:-translate-y-0.5 hover:shadow-card-hover
+           focus-within:-translate-y-0.5 focus-within:shadow-card-hover;
+  }
+
+  .product-card__media {
+    @apply relative aspect-square overflow-hidden bg-white;
+  }
+
+  .product-card__image {
+    @apply h-full w-full object-contain p-4 transition duration-300
+           group-hover:scale-[1.03];
+  }
+
+  .product-card__body {
+    @apply flex flex-1 flex-col gap-2 p-3 pt-2;
+  }
+
+  .product-card__title {
+    @apply text-sm font-medium leading-snug text-navy-900
+           line-clamp-2 hover:text-primary-700;
+    min-height: 2.5rem;
+  }
+
+  /* Wishlist/compare. Always visible on touch, revealed on hover with a
+     pointer — §17.4 replaces the old plain-text action links outright. */
+  .product-card__quick-actions {
+    @apply absolute end-2 top-2 flex flex-col gap-1.5
+           opacity-100 transition md:opacity-0
+           md:group-hover:opacity-100 md:group-focus-within:opacity-100;
+  }
+
+  .product-card__quick-action {
+    @apply flex h-9 w-9 items-center justify-center rounded-full
+           bg-white/95 text-neutral-600 shadow-sm backdrop-blur
+           hover:bg-primary-600 hover:text-white;
+  }
+
+  /* Already on the wishlist. */
+  .product-card__quick-action--on {
+    @apply bg-white text-primary-600;
+  }
+
+  /* The quick actions fade in on hover, which is right for an *offer* and
+     wrong for a *state*: a saved heart that only appears when the pointer is
+     over the card tells the shopper nothing while they are scanning the grid.
+     A card holding a saved item keeps its actions visible. */
+  .product-card__quick-actions:has(.product-card__quick-action--on) {
+    @apply opacity-100;
+  }
+
+  /* --- Price ------------------------------------------------------------ */
+
+  .price          { @apply text-price text-primary-700; }
+  .price-lg       { @apply text-price-lg text-primary-700; }
+  .price-original { @apply text-sm text-neutral-400 line-through; }
+
+  /* --- Quantity stepper ------------------------------------------------- */
+  /* Steel blue, matching the control customers already use (§17.3). */
+
+  .stepper {
+    @apply inline-flex items-stretch overflow-hidden rounded-control
+           border border-neutral-300;
+  }
+  .stepper__btn {
+    @apply flex w-11 items-center justify-center bg-secondary-600 text-white
+           transition hover:bg-secondary-700 active:bg-secondary-800
+           disabled:opacity-40;
+  }
+  .stepper__input {
+    @apply w-14 border-0 text-center text-base font-semibold text-navy-900
+           focus:ring-0 tabular;
+  }
+
+  /* --- Skeletons (Part II §5: every page handles its loading state) ------ */
+
+  .skeleton {
+    @apply rounded bg-neutral-200;
+    background-image: linear-gradient(
+      90deg,
+      theme("colors.neutral.200") 0%,
+      theme("colors.neutral.100") 50%,
+      theme("colors.neutral.200") 100%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  /* --- Empty / error states --------------------------------------------- */
+
+  .state-panel {
+    @apply flex flex-col items-center justify-center gap-3
+           rounded-card border border-dashed border-neutral-300
+           bg-white px-6 py-14 text-center;
+  }
+  .state-panel__title  { @apply text-lg font-semibold text-navy-900; }
+  .state-panel__body   { @apply max-w-md text-sm text-neutral-500; }
+
+  /* --- Header ----------------------------------------------------------- */
+
+  .utility-bar {
+    @apply bg-primary-600 text-white;
+  }
+  .utility-bar__link {
+    @apply inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs
+           font-medium text-white/90 transition hover:bg-white/15 hover:text-white;
+  }
+
+  .mega-nav {
+    @apply bg-secondary-600 text-white;
+  }
+  .mega-nav__link {
+    @apply relative inline-flex items-center whitespace-nowrap px-3 py-3
+           text-sm font-semibold text-white/95 transition
+           hover:bg-secondary-700 hover:text-white;
+  }
+  .mega-nav__link--active {
+    @apply bg-secondary-700 text-white;
+  }
+
+  /* --- Carousel tabs ---------------------------------------------------- */
+  /* "وصل حديثاً / الأكثر مبيعاً / أسعار مخفّضة / الأكثر مشاهدة" — the same tab
+     pattern as the old homepage, given a real active state (§17.3). */
+
+  .tab-strip {
+    @apply flex gap-1 overflow-x-auto border-b border-neutral-200 pb-px;
+    scrollbar-width: none;
+  }
+  .tab-strip::-webkit-scrollbar { display: none; }
+
+  .tab {
+    @apply relative whitespace-nowrap rounded-t-control px-4 py-2.5
+           text-sm font-semibold text-neutral-600 transition
+           hover:bg-neutral-200/60 hover:text-navy-900;
+  }
+  .tab--active {
+    @apply text-primary-700;
+  }
+  .tab--active::after {
+    content: "";
+    @apply absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary-600;
+  }
+
+  /* --- Announcement bar (Part I §3.3) ----------------------------------- */
+
+  .announcement-bar {
+    @apply bg-navy-900 text-white;
+  }
+
+  /* --- Impersonation banner (Part I §2.2.2) ----------------------------- */
+  /* Deliberately loud and unlike anything else on the site: it must never be
+     ambiguous which account is acting. */
+
+  .impersonation-banner {
+    @apply sticky top-0 z-50 flex flex-wrap items-center justify-center gap-x-3
+           gap-y-1 bg-warning-600 px-4 py-2 text-center text-sm
+           font-semibold text-white;
+  }
+
+  /* --- Product grid ----------------------------------------------------- */
+  /* auto-fill, not auto-fit: a category holding two items keeps card-sized
+     cards instead of stretching them across the row. §17.4 calls the stretched
+     near-empty category page out by name. */
+
+  .product-grid {
+    @apply grid gap-4;
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  }
+  @screen sm {
+    .product-grid { grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
+  }
+  @screen lg {
+    .product-grid { grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); }
+  }
+
+  /* Horizontal carousel: scroll-snap on mobile, no JS needed. */
+  .carousel-rail {
+    @apply flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2;
+    scrollbar-width: thin;
+  }
+  .carousel-rail > * {
+    @apply w-40 shrink-0 snap-start sm:w-44 lg:w-52;
+  }
+
+  /* --- Links ------------------------------------------------------------ */
+
+  .link {
+    @apply text-secondary-700 underline-offset-2 hover:text-secondary-800 hover:underline;
+  }
+
+  /* ======================================================================
+     Admin panel (Part I §17.6)
+
+     Its own look: clean, modern and data-dense, prioritising clarity and speed
+     for staff doing repetitive daily tasks over storefront branding. Tighter
+     type, tables instead of cards, and one badge language reused on every
+     screen so nobody relearns the UI module to module.
+     ====================================================================== */
+
+  .admin { @apply text-sm; }
+
+  /* --- Sidebar ---------------------------------------------------------- */
+
+  .admin-nav__link {
+    @apply flex items-center gap-2.5 rounded-control px-3 py-2 text-sm
+           font-medium text-neutral-300 transition
+           hover:bg-white/10 hover:text-white;
+  }
+  .admin-nav__link--active {
+    @apply bg-primary-600 text-white hover:bg-primary-600 hover:text-white;
+  }
+  .admin-nav__heading {
+    @apply mt-5 mb-1.5 px-3 text-2xs font-bold uppercase tracking-wider text-neutral-500;
+  }
+
+  /* Work waiting, beside the item that clears it. Drawn only when non-zero —
+     a column of grey noughts teaches people to stop reading the numbers. */
+  .admin-nav__count {
+    @apply ms-auto shrink-0 rounded-full bg-white/15 px-1.5 py-0.5 text-2xs
+           font-bold tabular text-white;
+  }
+  .admin-nav__link--active .admin-nav__count { @apply bg-white/25; }
+
+  /* Sub-screens, revealed only while their section is open. The rule on the
+     inline edge is what makes them read as "inside" rather than "next". */
+  .admin-nav__sublink {
+    @apply flex items-center gap-2 rounded-control py-1.5 pe-3 text-xs
+           font-medium text-neutral-400 transition hover:text-white;
+    @apply ms-5 border-s border-white/10 ps-3;
+  }
+  .admin-nav__sublink--active { @apply border-primary-500 text-white; }
+
+  /* --- Panels ----------------------------------------------------------- */
+
+  .admin-panel {
+    @apply rounded-card border border-neutral-200 bg-white shadow-sm;
+  }
+  .admin-panel__head {
+    @apply flex flex-wrap items-center gap-3 border-b border-neutral-200 px-4 py-3;
+  }
+  .admin-panel__title {
+    @apply text-sm font-semibold text-navy-900;
+  }
+  .admin-panel__body { @apply p-4; }
+
+  /* --- Tables ----------------------------------------------------------- */
+  /* Wide tables scroll inside their own container; the page never scrolls
+     sideways, which matters on a phone in the branch. */
+
+  .admin-table-wrap { @apply w-full overflow-x-auto; }
+
+  .admin-table {
+    @apply w-full border-collapse text-start text-sm;
+  }
+  .admin-table thead th {
+    @apply whitespace-nowrap border-b border-neutral-200 bg-neutral-50 px-3 py-2.5
+           text-start text-2xs font-bold uppercase tracking-wide text-neutral-500;
+  }
+  .admin-table tbody td {
+    @apply border-b border-neutral-100 px-3 py-2.5 align-middle text-neutral-700;
+  }
+  .admin-table tbody tr:hover { @apply bg-neutral-50; }
+  .admin-table tbody tr:last-child td { @apply border-b-0; }
+  .admin-table .num { @apply text-end tabular; }
+
+  /* --- Stat tiles ------------------------------------------------------- */
+
+  .stat-tile {
+    @apply rounded-card border border-neutral-200 bg-white p-4 shadow-sm;
+  }
+  .stat-tile__label {
+    @apply text-2xs font-bold uppercase tracking-wide text-neutral-500;
+  }
+  .stat-tile__value {
+    @apply mt-1 text-2xl font-bold tabular text-navy-900;
+  }
+  .stat-tile__hint { @apply mt-0.5 text-xs text-neutral-500; }
+
+  /* --- Filter bar ------------------------------------------------------- */
+
+  .admin-filters {
+    @apply flex flex-wrap items-end gap-3 rounded-card border border-neutral-200
+           bg-white p-3 shadow-sm;
+  }
+  .admin-filters .input,
+  .admin-filters select { @apply h-9 min-h-0 py-0 text-sm; }
+
+  /* --- Flash banner ----------------------------------------------------- */
+  /* One banner language for every outcome on every screen. Tone carries the
+     meaning on its own, because staff scan colour before they read. */
+
+  .admin-flash {
+    @apply flex items-start gap-2 rounded-card border p-3 text-sm;
+  }
+  .admin-flash__icon { @apply mt-0.5 shrink-0; }
+  .admin-flash__text { @apply min-w-0 flex-1; }
+  .admin-flash__close {
+    @apply -m-1 shrink-0 rounded-control p-1 opacity-60 transition
+           hover:bg-black/5 hover:opacity-100;
+  }
+  .admin-flash--success { @apply border-success-100 bg-success-50 text-success-700; }
+  .admin-flash--warning { @apply border-warning-100 bg-warning-50 text-warning-700; }
+  .admin-flash--danger  { @apply border-danger-100 bg-danger-50 text-danger-700; }
+  .admin-flash--info    { @apply border-info-100 bg-info-50 text-info-700; }
+
+  /* --- Page header ------------------------------------------------------ */
+
+  .admin-page-head { @apply space-y-1.5; }
+  .admin-page-head__back {
+    @apply inline-flex items-center gap-1 text-xs font-medium text-neutral-500
+           transition hover:text-secondary-700;
+  }
+  .admin-page-head__row {
+    @apply flex flex-wrap items-start justify-between gap-3;
+  }
+  .admin-page-head__title {
+    @apply truncate text-lg font-bold text-navy-900;
+  }
+  .admin-page-head__subtitle {
+    @apply mt-0.5 max-w-2xl text-xs leading-relaxed text-neutral-500;
+  }
+  .admin-page-head__actions {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  /* --- Pagination ------------------------------------------------------- */
+
+  .admin-pager {
+    @apply flex flex-wrap items-center justify-between gap-3;
+  }
+  .admin-pager__count { @apply text-xs text-neutral-500; }
+  .admin-pager__controls { @apply flex items-center gap-1; }
+  .admin-pager__page { @apply px-2 text-sm tabular text-neutral-600; }
+
+  /* --- Inline note ------------------------------------------------------ */
+
+  .admin-note {
+    @apply flex items-start gap-2 rounded-control bg-neutral-50 px-3 py-2
+           text-xs text-neutral-500;
+  }
+
+  /* --- Busy control (Part II §5) ---------------------------------------- */
+  /* Set by admin.js the moment a form is submitted. Not `disabled`: several
+     screens post the pressed button's own name/value, and a disabled button
+     sends nothing. */
+
+  .is-busy {
+    @apply pointer-events-none cursor-progress opacity-60;
+  }
+
+  /* --- Definition of "required" ----------------------------------------- */
+
+  .field-required::after {
+    content: "*";
+    @apply ms-0.5 text-danger-600;
+  }
+
+  /* --- Description lists ------------------------------------------------ */
+
+  .admin-dl { @apply grid gap-x-6 gap-y-3 sm:grid-cols-2; }
+  .admin-dl dt { @apply text-xs text-neutral-500; }
+  .admin-dl dd { @apply text-sm font-medium text-navy-900; }
+
+  /* --- Skip link -------------------------------------------------------- */
+
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:z-[100]
+           focus:m-2 focus:rounded-control focus:bg-white focus:px-4 focus:py-2
+           focus:font-semibold focus:text-primary-700 focus:shadow-dropdown;
+  }
+}
+
+@layer utilities {
+  /* Multi-line clamp without the plugin. */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Alpine sets x-cloak until it initialises; without this the un-hydrated
+     markup flashes on slow mobile connections. */
+  [x-cloak] { display: none !important; }
+}

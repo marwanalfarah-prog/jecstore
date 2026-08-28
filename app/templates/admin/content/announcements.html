@@ -1,0 +1,145 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Site-wide announcement bars (Part I §3.3).
+
+   Distinct from homepage sections: these render above the header on *every*
+   page. Zero, one or several may be live at once — priority decides stacking —
+   so nothing here deactivates the others.
+#}
+
+{% block title %}{{ t("content.announcements") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("content.announcements"), subtitle = t("content.announcements_purpose"),
+          back_href = "/admin/content", back_label = t("admin.content") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("content.new_announcement") }}</h2>
+    </div>
+    <form method="post" action="/admin/content/announcements"
+          class="admin-panel__body grid gap-3 sm:grid-cols-2">
+      <div>
+        <label for="message_ar" class="field-label">{{ t("content.message_ar") }}</label>
+        <input id="message_ar" name="message_ar" type="text" required
+               class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+      <div>
+        <label for="message_en" class="field-label">{{ t("content.message_en") }}</label>
+        <input id="message_en" name="message_en" type="text" dir="ltr" required
+               class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+      <div>
+        <label for="starts_dt" class="field-label">{{ t("content.starts") }}</label>
+        <input id="starts_dt" name="starts_dt" type="datetime-local"
+               class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+      <div>
+        <label for="ends_dt" class="field-label">{{ t("content.ends") }}</label>
+        <input id="ends_dt" name="ends_dt" type="datetime-local"
+               class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+      <div>
+        <label for="link_url" class="field-label">{{ t("content.link") }}</label>
+        <input id="link_url" name="link_url" type="url" dir="ltr"
+               class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+      <div>
+        <label for="priority" class="field-label">{{ t("content.priority") }}</label>
+        <input id="priority" name="priority" type="number" value="0"
+               class="input h-9 min-h-0 py-0 text-sm">
+        <p class="field-hint">{{ t("content.priority_hint") }}</p>
+      </div>
+      <label class="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="is_enabled" value="1" checked
+               class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+        {{ t("content.enabled") }}
+      </label>
+      <label class="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="is_dismissible" value="1" checked
+               class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+        {{ t("content.dismissible") }}
+      </label>
+      <div class="sm:col-span-2">
+        <button type="submit" class="btn-primary btn-sm">{{ t("content.new_announcement") }}</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("content.announcements") }}</h2>
+    </div>
+    {% if bars %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("content.message") }}</th>
+              <th>{{ t("content.window") }}</th>
+              <th class="num">{{ t("content.priority") }}</th>
+              <th>{{ t("admin.status") }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for bar in bars %}
+              <tr>
+                <td class="max-w-md">{{ localized(bar, "message") }}</td>
+                <td class="text-xs text-neutral-500">
+                  {% if bar.starts_dt or bar.ends_dt %}
+                    {{ datetime(bar.starts_dt) if bar.starts_dt else "—" }}
+                    &rarr;
+                    {{ datetime(bar.ends_dt) if bar.ends_dt else "—" }}
+                  {% else %}
+                    {{ t("content.always") }}
+                  {% endif %}
+                </td>
+                <td class="num">{{ num(bar.priority) }}</td>
+                <td>
+                  {% if bar.is_live(now) %}
+                    <span class="badge-success">{{ t("content.live") }}</span>
+                  {% elif bar.is_enabled_flag %}
+                    <span class="badge-warning">{{ t("content.scheduled") }}</span>
+                  {% else %}
+                    <span class="badge-neutral">{{ t("content.disabled") }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <div class="flex justify-end gap-1">
+                    <form method="post"
+                          action="/admin/content/announcements/{{ bar.pk_announcement_bar_id }}/toggle">
+                      <input type="hidden" name="enabled"
+                             value="{{ '0' if bar.is_enabled_flag else '1' }}">
+                      <button type="submit" class="btn-outline btn-sm">
+                        {{ t("content.turn_off") if bar.is_enabled_flag else t("content.turn_on") }}
+                      </button>
+                    </form>
+                    <form method="post"
+                          action="/admin/content/announcements/{{ bar.pk_announcement_bar_id }}/remove" data-confirm="{{ t('content.confirm_remove_announcement') }}">
+                      <button type="submit" class="btn-ghost btn-sm text-danger-600">
+                        {{ t("content.remove") }}
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        <p class="text-sm text-neutral-500">{{ t("listing.no_results") }}</p>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

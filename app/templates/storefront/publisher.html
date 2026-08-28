@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{# Publisher landing page — a pre-built listing of everything by one publisher,
+   reachable from the product page and the homepage logo strip (Part I §5.6). #}
+
+{% block title %}{{ localized(publisher) }} — {{ t("site.name") }}{% endblock %}
+{% block meta_description %}{{ localized(publisher, "description") | striptags | truncate(160) }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ settings.app_base_url }}{{ publisher_url(publisher) }}">{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+
+  <header class="card mb-6 flex flex-col items-center gap-4 p-6 sm:flex-row sm:gap-6">
+    {% if publisher.logo_path %}
+      <img src="{{ media(publisher.logo_path) }}" alt="{{ localized(publisher) }}"
+           class="h-20 w-32 shrink-0 object-contain">
+    {% endif %}
+    <div class="min-w-0 text-center sm:text-start">
+      <h1>{{ localized(publisher) }}</h1>
+      {% if localized(publisher, "description") %}
+        <p class="mt-2 text-neutral-600">{{ localized(publisher, "description") }}</p>
+      {% endif %}
+      <p class="mt-1 text-sm text-neutral-500">
+        {{ t("listing.results_count", count=num(products | length)) }}
+      </p>
+    </div>
+  </header>
+
+  {% include "partials/product_grid.html" %}
+</div>
+{% endblock %}

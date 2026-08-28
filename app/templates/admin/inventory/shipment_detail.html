@@ -1,0 +1,73 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ shipment.reference }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-4">
+
+  {% with title = shipment.reference, title_ltr = true, subtitle = t("inventory.shipment_purpose"),
+          back_href = "/admin/inventory/shipments", back_label = t("admin.shipments") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title" dir="ltr">{{ shipment.reference }}</h2>
+      {% if shipment.no_invoice_available_flag %}
+        <span class="badge-warning">{{ t("inventory.no_invoice") }}</span>
+      {% endif %}
+      <a href="/admin/inventory/labels?shipment={{ shipment.pk_shipment_id }}"
+         target="_blank" rel="noopener" class="btn-outline btn-sm ms-auto">
+        {{ t("inventory.print_labels") }}
+      </a>
+    </div>
+    <div class="admin-panel__body">
+      <dl class="admin-dl lg:grid-cols-4">
+        <div><dt>{{ t("inventory.supplier") }}</dt><dd>{{ shipment.supplier_name or "—" }}</dd></div>
+        <div><dt>{{ t("inventory.invoice_date") }}</dt>
+          <dd>{{ date(shipment.invoice_date) if shipment.invoice_date else "—" }}</dd></div>
+        <div><dt>{{ t("currency.label") }}</dt>
+          <dd>{{ shipment.currency }}{% if shipment.usd_rate_used %}
+            <span class="text-xs text-neutral-500">@ {{ shipment.usd_rate_used }}</span>{% endif %}</dd></div>
+        <div><dt>{{ t("inventory.freight") }}</dt>
+          <dd>{{ money(shipment.shipping_cost_amt + shipment.customs_cost_amt) }}</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("orders.items") }}</h2>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th class="num">{{ t("product.quantity") }}</th>
+            <th class="num">{{ t("inventory.unit_cost") }}</th>
+            <th class="num">{{ t("inventory.landed_cost") }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in lines %}
+            {% set v = variants.get(line.fk_product_variant_id) %}
+            <tr>
+              <td>
+                <a href="/admin/inventory/item/{{ line.fk_product_variant_id }}"
+                   class="link text-xs" dir="ltr">{{ v.sku if v else "—" }}</a>
+              </td>
+              <td class="num">{{ num(line.quantity) }}</td>
+              <td class="num text-neutral-500">{{ line.unit_cost_amt }} {{ shipment.currency }}</td>
+              {# Landed cost: the invoice price plus its share of freight and
+                 customs, converted to JOD — this is what costing consumes. #}
+              <td class="num font-medium">{{ money(line.unit_cost_jod_amt) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

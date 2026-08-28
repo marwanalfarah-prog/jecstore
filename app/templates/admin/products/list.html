@@ -1,0 +1,139 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.products") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("admin.products"), subtitle = t("catalog.products_purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <form method="get" class="admin-filters">
+    {% with owned = ["q", "category", "visible", "page"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+    <div>
+      <label for="q" class="field-label">{{ t("common.search") }}</label>
+      <input id="q" name="q" type="search" class="input w-56"
+             placeholder="{{ t('catalog.search_products_hint') }}"
+             value="{{ request.query_params.get('q', '') }}">
+    </div>
+    <div>
+      <label for="category" class="field-label">{{ t("admin.categories") }}</label>
+      <select id="category" name="category" class="input w-48" data-autosubmit>
+        <option value="">{{ t("listing.all") }}</option>
+        {% for category in categories %}
+          <option value="{{ category.pk_category_id }}"
+                  {% if request.query_params.get('category') == (category.pk_category_id|string) %}selected{% endif %}>
+            {{ "— " * category.depth }}{{ localized(category) }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="visible" class="field-label">{{ t("admin.status") }}</label>
+      <select id="visible" name="visible" class="input w-36" data-autosubmit>
+        <option value="">{{ t("listing.all") }}</option>
+        <option value="1" {% if request.query_params.get('visible') == '1' %}selected{% endif %}>{{ t("catalog.visible") }}</option>
+        <option value="0" {% if request.query_params.get('visible') == '0' %}selected{% endif %}>{{ t("catalog.hidden") }}</option>
+      </select>
+    </div>
+    <button type="submit" class="btn-secondary btn-sm">{{ t("listing.filters") }}</button>
+    {% if request.query_params.get('q') or request.query_params.get('category') or request.query_params.get('visible') %}
+      <a href="/admin/products" class="btn-ghost btn-sm">{{ t("listing.clear_filters") }}</a>
+    {% endif %}
+
+    <div class="ms-auto flex flex-wrap items-center gap-2">
+      {% with report = "inventory", query = "" %}
+        {% include "admin/partials/export_buttons.html" %}
+      {% endwith %}
+      <a href="/admin/products/attributes" class="btn-outline btn-sm">
+        {{ icon.list(class="h-4 w-4") }} {{ t("catalog.custom_details") }}
+      </a>
+      <a href="/admin/products/new" class="btn-primary btn-sm">
+        {{ icon.plus(class="h-4 w-4") }} {{ t("catalog.new_product") }}
+      </a>
+    </div>
+  </form>
+
+  <section class="admin-panel">
+    {% if rows %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.product") }}</th>
+              <th>{{ t("admin.categories") }}</th>
+              <th>{{ t("catalog.publisher") }}</th>
+              <th class="num">{{ t("admin.unit_price") }}</th>
+              <th class="num">{{ t("catalog.variants") }}</th>
+              <th>{{ t("admin.status") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td>
+                  <a href="/admin/products/{{ row.product.pk_product_id }}"
+                     class="font-medium text-secondary-700 hover:underline">
+                    {{ localized(row.product) }}
+                  </a>
+                  <div class="text-xs text-neutral-500">
+                    {%- if row.product.isbn %}<span dir="ltr">ISBN {{ row.product.isbn }}</span>{% endif -%}
+                    {%- if row.product.isbn and row.product.published_dt %} · {% endif -%}
+                    {%- if row.product.published_dt %}{{ t("catalog.released") }} {{ date(row.product.published_dt) }}{% endif -%}
+                  </div>
+                </td>
+                <td>{{ localized(row.primary_category) if row.primary_category else "—" }}</td>
+                <td>{{ localized(row.product.publisher) if row.product.publisher else "—" }}</td>
+                <td class="num">{{ money(row.product.base_price_amt) }}</td>
+                <td class="num">{{ num(row.variant_count) }}</td>
+                <td>
+                  {# Visibility is the only thing here that decides whether a
+                     shopper can see the product. `published_dt` is a release
+                     date that orders the New Arrivals carousel — it used to
+                     render as a second status badge beside "Visible", which
+                     read as a second gate staff had to satisfy. It is a date,
+                     so it is shown as one, under the name. #}
+                  {% if row.product.is_visible_flag %}
+                    <span class="badge-success">{{ t("catalog.visible") }}</span>
+                  {% else %}
+                    <span class="badge-neutral">{{ t("catalog.hidden") }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        {% if request.query_params.get('q') or request.query_params.get('category') or request.query_params.get('visible') %}
+          {% with empty_icon = "search", empty_title = t("listing.no_results"),
+                  empty_body = t("listing.no_results_hint"),
+                  empty_action_href = "/admin/products",
+                  empty_action_label = t("listing.clear_filters") %}
+            {% include "admin/partials/empty.html" %}
+          {% endwith %}
+        {% else %}
+          {% with empty_icon = "cart", empty_title = t("catalog.no_products"),
+                  empty_body = t("catalog.no_products_hint"),
+                  empty_action_href = "/admin/products/new",
+                  empty_action_label = t("catalog.new_product") %}
+            {% include "admin/partials/empty.html" %}
+          {% endwith %}
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  {% with per_page = per_page %}
+    {% include "admin/partials/pagination.html" %}
+  {% endwith %}
+</div>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.returns") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% with title = t("admin.returns"), subtitle = t("returns.purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <form method="get" class="admin-filters">
+    {% with owned = ["q", "status", "page"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+    <div>
+      <label for="q" class="field-label">{{ t("returns.return_number") }}</label>
+      <input id="q" name="q" type="search" class="input w-44" dir="ltr"
+             value="{{ request.query_params.get('q', '') }}">
+    </div>
+    <div>
+      <label for="status" class="field-label">{{ t("admin.status") }}</label>
+      <select id="status" name="status" class="input w-44" data-autosubmit>
+        <option value="">{{ t("listing.all") }}</option>
+        <option value="open" {% if request.query_params.get('status') == 'open' %}selected{% endif %}>
+          {{ t("admin.filter_open") }}
+        </option>
+        {% for value in statuses %}
+          <option value="{{ value }}" {% if request.query_params.get('status') == value %}selected{% endif %}>
+            {{ t("returns.status_" ~ value) }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn-secondary btn-sm">{{ t("listing.filters") }}</button>
+    {% if request.query_params.get('q') or request.query_params.get('status') %}
+      <a href="/admin/returns" class="btn-ghost btn-sm">{{ t("listing.clear_filters") }}</a>
+    {% endif %}
+  
+    <div class="ms-auto flex flex-wrap items-center gap-2">
+      {% with report = "returns", query = "" %}
+        {% include "admin/partials/export_buttons.html" %}
+      {% endwith %}
+      <a href="/admin/returns/new" class="btn-primary btn-sm">{{ t("returns.new") }}</a>
+    </div>
+</form>
+
+  <section class="admin-panel">
+    {% if returns %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("returns.return_number") }}</th>
+              <th>{{ t("orders.order_number") }}</th>
+              <th>{{ t("returns.reason") }}</th>
+              <th>{{ t("admin.status") }}</th>
+              <th class="num">{{ t("returns.refund_amount") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in returns %}
+              <tr>
+                <td>
+                  <a href="/admin/returns/{{ row.pk_order_return_id }}"
+                     class="font-medium text-secondary-700 hover:underline" dir="ltr">
+                    {{ row.return_number }}
+                  </a>
+                </td>
+                <td dir="ltr" class="text-xs text-neutral-500">
+                  {{ orders.get(row.fk_order_id).order_number if orders.get(row.fk_order_id) else "—" }}
+                </td>
+                <td class="text-xs">{{ t("returns.reason_" ~ row.reason_code) }}</td>
+                <td>
+                  {% set tone = {"requested":"badge-neutral","under_inspection":"badge-warning",
+                                 "approved":"badge-success","rejected":"badge-danger",
+                                 "refunded":"badge-success"} %}
+                  <span class="{{ tone.get(row.status, 'badge-neutral') }}">
+                    {{ t("returns.status_" ~ row.status) }}
+                  </span>
+                </td>
+                <td class="num">{{ money(row.refund_amt) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        {% if request.query_params.get('q') or request.query_params.get('status') %}
+          {% with empty_icon = "search", empty_title = t("listing.no_results"),
+                  empty_body = t("listing.no_results_hint"),
+                  empty_action_href = "/admin/returns",
+                  empty_action_label = t("listing.clear_filters") %}
+            {% include "admin/partials/empty.html" %}
+          {% endwith %}
+        {% else %}
+          {% with empty_icon = "package", empty_title = t("returns.admin_none_yet"),
+                  empty_body = t("returns.admin_none_yet_hint"),
+                  empty_action_href = "/admin/returns/new",
+                  empty_action_label = t("returns.new") %}
+            {% include "admin/partials/empty.html" %}
+          {% endwith %}
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  {% include "admin/partials/pagination.html" %}
+</div>
+{% endblock %}

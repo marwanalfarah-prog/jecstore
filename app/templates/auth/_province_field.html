@@ -1,0 +1,7 @@
+{# HTMX partial: the province dropdown, reloaded when the country changes. #}
+<label for="province_id" class="field-label">{{ t("auth.province") }}</label>
+<select id="province_id" name="province_id" class="input">
+  {% for province in provinces %}
+    <option value="{{ province.pk_province_id }}">{{ localized(province) }}</option>
+  {% endfor %}
+</select>

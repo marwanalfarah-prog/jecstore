@@ -1,0 +1,299 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.reports") }}{% endblock %}
+
+{% block content %}
+{% set report_query = "start=" ~ start_date.isoformat() ~ "&end=" ~ end_date.isoformat() %}
+
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("admin.reports"), subtitle = t("reports.purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <form method="get" class="admin-filters">
+    {% with owned = ["start", "end", "category"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+    <div>
+      <label for="start" class="field-label">{{ t("reports.start_date") }}</label>
+      <input id="start" name="start" type="date" class="input h-9 min-h-0 py-0 text-sm"
+             value="{{ start_date.isoformat() }}">
+    </div>
+    <div>
+      <label for="end" class="field-label">{{ t("reports.end_date") }}</label>
+      <input id="end" name="end" type="date" class="input h-9 min-h-0 py-0 text-sm"
+             value="{{ end_date.isoformat() }}">
+    </div>
+    <div>
+      <label for="category" class="field-label">{{ t("reports.cost_category") }}</label>
+      <select id="category" name="category" class="input h-9 min-h-0 py-0 text-sm" data-autosubmit>
+        <option value="">{{ t("listing.all") }}</option>
+        {% for category in cost_categories %}
+          <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>
+            {{ category }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn-secondary btn-sm">{{ t("listing.filters") }}</button>
+
+    {# Typing two dates to answer "how did last month go?" is the commonest
+       thing anyone does on this screen, so it takes one press instead. #}
+    <div class="flex flex-wrap items-center gap-1">
+      <a href="?start={{ presets.this_month[0] }}&end={{ presets.this_month[1] }}"
+         class="btn-ghost btn-sm">{{ t("reports.preset_this_month") }}</a>
+      <a href="?start={{ presets.last_month[0] }}&end={{ presets.last_month[1] }}"
+         class="btn-ghost btn-sm">{{ t("reports.preset_last_month") }}</a>
+      <a href="?start={{ presets.this_year[0] }}&end={{ presets.this_year[1] }}"
+         class="btn-ghost btn-sm">{{ t("reports.preset_this_year") }}</a>
+    </div>
+  </form>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("reports.financial_statement") }}</h2>
+      <span class="ms-auto text-xs text-neutral-500">
+        {{ date(start_date) }} – {{ date(end_date) }}
+      </span>
+      {% if can_export %}
+        {% with report = "financial_statement", query = report_query %}
+          {% include "admin/partials/export_buttons.html" %}
+        {% endwith %}
+      {% endif %}
+    </div>
+
+    <div class="admin-panel__body">
+      <dl class="admin-dl lg:grid-cols-4">
+        <div>
+          <dt>{{ t("reports.gross_sales") }}</dt>
+          <dd>{{ money(statement.gross_sales_amt) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("reports.refunds") }}</dt>
+          <dd class="text-danger-600">{{ money(statement.refunds_amt) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("reports.net_sales") }}</dt>
+          <dd>{{ money(statement.net_sales_amt) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("reports.cogs") }}</dt>
+          <dd class="text-danger-600">{{ money(statement.cogs_amt) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("reports.gross_profit") }}</dt>
+          <dd>{{ money(statement.gross_profit_amt) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("reports.operating_costs") }}</dt>
+          <dd class="text-danger-600">{{ money(statement.operating_costs_amt) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("reports.consignment_payouts") }}</dt>
+          <dd class="text-danger-600">{{ money(statement.consignment_payouts_amt) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("reports.consignment_collections") }}</dt>
+          <dd class="text-success-700">{{ money(statement.consignment_collections_amt) }}</dd>
+        </div>
+        <div class="lg:col-span-2">
+          <dt>{{ t("reports.money_in") }}</dt>
+          <dd>{{ money(statement.money_in_amt) }}</dd>
+        </div>
+        <div class="lg:col-span-2">
+          <dt>{{ t("reports.money_out") }}</dt>
+          <dd>{{ money(statement.money_out_amt) }}</dd>
+        </div>
+        <div class="lg:col-span-4">
+          <dt>{{ t("reports.net_profit") }}</dt>
+          <dd class="{% if statement.net_profit_amt < 0 %}text-danger-600{% else %}text-success-700{% endif %}">
+            {{ money(statement.net_profit_amt) }}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_26rem] xl:items-start">
+    <div class="space-y-4">
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("reports.money_movements") }}</h2>
+        </div>
+        {% if statement.movement_totals %}
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>{{ t("money.reason") }}</th>
+                  <th class="num">{{ t("admin.amount") }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in statement.movement_totals %}
+                  <tr>
+                    <td>{{ t("money.reason_" ~ row.reason_code) }}</td>
+                    <td class="num {% if row.amount_amt < 0 %}text-danger-600{% else %}text-success-700{% endif %}">
+                      {{ money(row.amount_amt) }}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="admin-panel__body text-sm text-neutral-500">{{ t("reports.no_movements") }}</div>
+        {% endif %}
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("reports.operating_costs") }}</h2>
+        </div>
+        {% if costs %}
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>{{ t("reports.cost_name") }}</th>
+                  <th>{{ t("reports.cost_category") }}</th>
+                  <th>{{ t("reports.incurred_date") }}</th>
+                  <th class="num">{{ t("admin.amount") }}</th>
+                  <th>{{ t("reports.recurring") }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for cost in costs %}
+                  <tr>
+                    <td>{{ localized(cost) }}</td>
+                    <td>{{ cost.category_code }}</td>
+                    <td>{{ date(cost.incurred_date) }}</td>
+                    <td class="num">{{ money(cost.amount_amt) }}</td>
+                    <td>
+                      {% if cost.is_recurring_flag %}
+                        <span class="badge-warning">{{ t("reports.every_months", count=num(cost.recurrence_months)) }}</span>
+                      {% else %}
+                        <span class="badge-neutral">{{ t("common.no") }}</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="admin-panel__body text-sm text-neutral-500">{{ t("reports.no_costs") }}</div>
+        {% endif %}
+      </section>
+    </div>
+
+    {% if can_record_cost %}
+      <aside class="space-y-4">
+        <section class="admin-panel">
+          <div class="admin-panel__head">
+            <h2 class="admin-panel__title">{{ t("reports.record_cost") }}</h2>
+          </div>
+          <form method="post" action="/admin/reports/operating-costs" class="admin-panel__body space-y-3">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label for="name_ar" class="field-label">{{ t("reports.name_ar") }}</label>
+                <input id="name_ar" name="name_ar" class="input" required>
+              </div>
+              <div>
+                <label for="name_en" class="field-label">{{ t("reports.name_en") }}</label>
+                <input id="name_en" name="name_en" class="input" required dir="ltr">
+              </div>
+              <div>
+                <label for="category_code" class="field-label">{{ t("reports.cost_category") }}</label>
+                <input id="category_code" name="category_code" class="input" required dir="ltr">
+              </div>
+              <div>
+                <label for="amount_amt" class="field-label">{{ t("admin.amount") }}</label>
+                <input id="amount_amt" name="amount_amt" class="input" inputmode="decimal" required dir="ltr">
+              </div>
+              <div>
+                <label for="incurred_date" class="field-label">{{ t("reports.incurred_date") }}</label>
+                <input id="incurred_date" name="incurred_date" type="date" class="input" required>
+              </div>
+              <div>
+                <label for="money_box_id" class="field-label">{{ t("admin.money_box") }}</label>
+                <select id="money_box_id" name="money_box_id" class="input" required>
+                  {% for box in boxes %}
+                    <option value="{{ box.pk_money_box_id }}">{{ localized(box) }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="sm:col-span-2">
+                <label for="branch_id" class="field-label">{{ t("admin.branches") }}</label>
+                <select id="branch_id" name="branch_id" class="input">
+                  <option value="">{{ t("listing.all") }}</option>
+                  {% for branch in branches %}
+                    <option value="{{ branch.pk_branch_id }}">{{ localized(branch) }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            {# "Every how many months?" is meaningless for a one-off cost, and
+               a permanently visible empty box invites someone to fill it in on
+               a cost that does not recur. #}
+            <div x-data="{ recurring: false }">
+              <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" name="is_recurring_flag" value="1" x-model="recurring"
+                       class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                <span>{{ t("reports.recurring") }}</span>
+              </label>
+              <div x-show="recurring" x-cloak class="mt-2">
+                <label for="recurrence_months" class="field-label">{{ t("reports.recurrence_months") }}</label>
+                <input id="recurrence_months" name="recurrence_months" type="number" min="1"
+                       class="input" dir="ltr">
+                <p class="field-hint">{{ t("reports.recurring_hint") }}</p>
+              </div>
+            </div>
+            <div>
+              <label for="note" class="field-label">{{ t("approvals.note") }}</label>
+              <textarea id="note" name="note" rows="2" class="input"></textarea>
+            </div>
+            <button type="submit" class="btn-primary btn-sm">{{ t("reports.record_cost") }}</button>
+          </form>
+        </section>
+      </aside>
+    {% endif %}
+  </div>
+
+  {% if can_export %}
+    {# §2.2: "every report and dashboard view must be exportable". The screen
+       used to carry export buttons for two of them and no way to reach the
+       rest, so five built reports were unreachable from any screen. #}
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("reports.directory") }}</h2>
+      </div>
+      <p class="border-b border-neutral-200 px-4 py-2 text-xs text-neutral-500">
+        {{ t("reports.directory_purpose") }}
+      </p>
+      <ul class="divide-y divide-neutral-100">
+        {% for report_item in reports %}
+          <li class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+            <span class="min-w-48 flex-1">
+              <span class="block text-sm font-medium text-navy-900">{{ t(report_item.title_key) }}</span>
+              <span class="block text-xs text-neutral-500">{{ t(report_item.about_key) }}</span>
+            </span>
+            <span class="badge-neutral shrink-0">
+              {{ t("reports.dated") if report_item.dated else t("reports.undated") }}
+            </span>
+            {% with report = report_item.key,
+                    query = report_query if report_item.dated else "" %}
+              {% include "admin/partials/export_buttons.html" %}
+            {% endwith %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

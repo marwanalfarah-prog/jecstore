@@ -1,0 +1,25 @@
+{# The logo mark, in one place.
+
+   Part I §1 specifies `JECStoreLogo.png` for the site, favicon, emails and
+   invoices. That asset is not in the repository yet, so this renders an inline
+   placeholder built from the brand colours (§17.1) — including the multicolour
+   accent the real mark carries.
+
+   To swap in the real logo: drop `JECStoreLogo.png` into `app/static/img/` and
+   replace the <svg> below with:
+     <img src="{{ static('img/JECStoreLogo.png') }}" alt="{{ t('site.name') }}"
+          class="{{ class }}" width="48" height="48">
+   Nothing else needs to change — every surface includes this partial.
+#}
+<svg viewBox="0 0 48 48" class="{{ class | default('h-10 w-auto') }}"
+     role="img" aria-label="{{ t('site.name') }}"
+     xmlns="http://www.w3.org/2000/svg">
+  <rect width="48" height="48" rx="10" fill="#2C3446"/>
+  {# Open book, in the crimson primary. #}
+  <path d="M9 15.5c4.6-1.6 9.1-1.6 13.6 0v19c-4.5-1.6-9-1.6-13.6 0v-19Z" fill="#E63950"/>
+  <path d="M39 15.5c-4.6-1.6-9.1-1.6-13.6 0v19c4.5-1.6 9-1.6 13.6 0v-19Z" fill="#F96A81"/>
+  {# The multicolour accent from the real mark: orange, yellow, steel blue. #}
+  <circle cx="24" cy="11" r="3.2" fill="#F5C518"/>
+  <path d="M24 6.2v9.6M19.2 11h9.6" stroke="#F08A24" stroke-width="1.6" stroke-linecap="round"/>
+  <rect x="21.4" y="15.5" width="5.2" height="19" rx="1.2" fill="#3E7CB1"/>
+</svg>

@@ -1,0 +1,36 @@
+# --- Web framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+jinja2==3.1.5
+python-multipart==0.0.20
+itsdangerous==2.2.0
+
+# --- Data layer ---
+sqlalchemy==2.0.36
+alembic==1.14.0
+psycopg[binary]==3.2.3          # PostgreSQL driver (Part II 7.4: dev against PG before launch)
+
+# --- Validation / settings ---
+pydantic==2.10.4
+pydantic-settings==2.7.0
+email-validator==2.2.0
+
+# --- Security ---
+argon2-cffi==23.1.0
+passlib==1.7.4
+
+# --- Infrastructure ---
+redis==5.2.1                    # server-side sessions + rate-limit counters (Part II 7.4)
+httpx==0.28.1
+tzdata                          # Windows has no system tz database; Alembic's UTC timestamps need it
+
+# --- Documents ---
+weasyprint==63.1                # RTL-correct PDF invoices (Part II 7.4)
+
+# --- Dev / test ---
+pytest==8.3.4
+fakeredis==2.26.2                    # tests the Redis rate-limit path for real (Part II 6)
+pytest-asyncio==0.25.0
+python-barcode==0.15.1               # Code128 label generation (Part I 11)
+Pillow==11.0.0                       # image validation, EXIF stripping, thumbnails (Part I 5.2)
+openpyxl==3.1.5                      # Excel export (Part I 2.2)

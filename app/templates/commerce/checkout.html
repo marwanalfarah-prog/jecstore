@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Checkout (Part I §8). Fulfilment choice drives what the form asks for, so the
+   address block and the branch picker swap rather than both sitting there. #}
+
+{% block title %}{{ t("checkout.title") }} — {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <h1>{{ t("checkout.title") }}</h1>
+
+  {% if error %}
+    <div class="mt-5 flex items-start gap-2 rounded-control bg-danger-50 p-4 text-sm text-danger-700"
+         role="alert">
+      {{ icon.alert(class="h-5 w-5 shrink-0") }}
+      <p>{{ error }}</p>
+    </div>
+  {% endif %}
+
+  {% if not email_verified %}
+    {# Unverified accounts persist indefinitely but cannot check out (§2.5). #}
+    <div class="mt-5 flex flex-wrap items-center gap-3 rounded-control bg-warning-50 p-4
+                text-sm text-warning-700" role="alert">
+      {{ icon.alert(class="h-5 w-5 shrink-0") }}
+      <p class="flex-1">{{ t("auth.verify_required") }}</p>
+      <a href="/account" class="btn-outline btn-sm">{{ t("auth.resend_verification") }}</a>
+    </div>
+  {% endif %}
+
+  <form method="post" action="/checkout"
+        class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start"
+        x-data="{ method: '{{ submission.fulfillment_method }}' }">
+
+    <input type="hidden" name="promocode" value="{{ submission.promocode | default('', true) }}">
+
+    <div class="space-y-5">
+
+      {# --- Fulfilment choice --------------------------------------------- #}
+      <section class="card p-5">
+        <h2 class="text-lg">{{ t("checkout.fulfillment") }}</h2>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          {% for value, label_key, hint_key, icon_name in [
+               ("pickup", "checkout.pickup", "checkout.pickup_hint", "pin"),
+               ("shipping", "checkout.shipping", "checkout.shipping_hint", "package")] %}
+            <label class="cursor-pointer">
+              <input type="radio" name="fulfillment_method" value="{{ value }}"
+                     class="peer sr-only" x-model="method">
+              <span class="flex h-full flex-col gap-1.5 rounded-control border-2
+                           border-neutral-200 p-4 transition hover:border-neutral-300
+                           peer-checked:border-primary-600 peer-checked:bg-primary-50">
+                <span class="flex items-center gap-2 font-semibold text-navy-900">
+                  {% if icon_name == "pin" %}{{ icon.pin(class="h-5 w-5") }}
+                  {% else %}{{ icon.package(class="h-5 w-5") }}{% endif %}
+                  {{ t(label_key) }}
+                </span>
+                <span class="text-sm text-neutral-500">{{ t(hint_key) }}</span>
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+      </section>
+
+      {# --- Pickup branch --------------------------------------------------- #}
+      <section class="card p-5" x-show="method === 'pickup'" x-cloak>
+        <h2 class="text-lg">{{ t("checkout.pickup_branch") }}</h2>
+        {% if branches %}
+          <div class="mt-4 space-y-2">
+            {% for branch in branches %}
+              <label class="flex cursor-pointer items-start gap-3 rounded-control border
+                            border-neutral-200 p-3 transition hover:border-neutral-300
+                            has-[:checked]:border-primary-600 has-[:checked]:bg-primary-50">
+                <input type="radio" name="pickup_branch_id" value="{{ branch.pk_branch_id }}"
+                       class="mt-1 text-primary-600 focus:ring-secondary-600"
+                       {% if loop.first %}checked{% endif %}>
+                <span class="min-w-0">
+                  <span class="block font-medium text-navy-900">{{ localized(branch) }}</span>
+                  {% if localized(branch, "address") %}
+                    <span class="block text-sm text-neutral-500">{{ localized(branch, "address") }}</span>
+                  {% endif %}
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="mt-3 text-sm text-neutral-500">{{ t("branch.empty") }}</p>
+        {% endif %}
+      </section>
+
+      {# --- Shipping address ------------------------------------------------ #}
+      <section class="card p-5" x-show="method === 'shipping'" x-cloak>
+        <h2 class="text-lg">{{ t("checkout.shipping_address") }}</h2>
+        {% if addresses %}
+          <div class="mt-4 space-y-2">
+            {% for option in addresses %}
+              <label class="flex cursor-pointer items-start gap-3 rounded-control border
+                            border-neutral-200 p-3 transition hover:border-neutral-300
+                            has-[:checked]:border-primary-600 has-[:checked]:bg-primary-50">
+                <input type="radio" name="address_id" value="{{ option.id }}"
+                       class="mt-1 text-primary-600 focus:ring-secondary-600"
+                       {% if loop.first %}checked{% endif %}>
+                <span class="min-w-0 text-sm">
+                  <span class="block font-medium text-navy-900">{{ option.address.address_line }}</span>
+                  <span class="block text-neutral-500">
+                    {{ option.address.city }}{% if option.province %} — {{ localized(option.province) }}{% endif %}{% if option.country %}, {{ localized(option.country) }}{% endif %}
+                  </span>
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="mt-3 text-sm text-neutral-500">{{ t("checkout.no_address") }}</p>
+        {% endif %}
+      </section>
+
+      {# --- Order notes (Part I §8) ----------------------------------------- #}
+      <section class="card p-5">
+        <label for="customer_note" class="field-label">{{ t("checkout.note") }}</label>
+        <textarea id="customer_note" name="customer_note" rows="3" class="input"
+                  placeholder="{{ t('checkout.note_placeholder') }}">{{ submission.customer_note | default('', true) }}</textarea>
+      </section>
+    </div>
+
+    {# --- Summary ---------------------------------------------------------- #}
+    <aside class="card p-5">
+      <h2 class="text-lg">{{ t("checkout.summary") }}</h2>
+
+      <ul class="mt-4 space-y-3 border-b border-neutral-200 pb-4">
+        {% for item in quote.cart.lines %}
+          <li class="flex items-start justify-between gap-3 text-sm">
+            <span class="min-w-0">
+              <span class="block text-navy-900">{{ localized(item.product) }}</span>
+              <span class="text-neutral-500">&times;<span class="tabular">{{ num(item.line.quantity) }}</span></span>
+            </span>
+            <span class="tabular shrink-0 font-medium">{{ money(item.line_total_amt) }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+
+      <dl class="mt-4 space-y-3 text-sm">
+        <div class="flex items-center justify-between gap-4">
+          <dt class="text-neutral-600">{{ t("cart.subtotal") }}</dt>
+          <dd class="tabular font-medium">{{ money(quote.subtotal_amt) }}</dd>
+        </div>
+
+        {% if quote.promocode_discount_amt %}
+          <div class="flex items-center justify-between gap-4">
+            <dt class="text-neutral-600">
+              {{ t("cart.discount") }}
+              {% if quote.promocode_result %}
+                <span class="text-xs text-neutral-400">({{ quote.promocode_result.code }})</span>
+              {% endif %}
+            </dt>
+            <dd class="tabular font-medium text-success-600">
+              &minus;{{ money(quote.promocode_discount_amt) }}
+            </dd>
+          </div>
+        {% endif %}
+
+        <div class="flex items-center justify-between gap-4">
+          <dt class="text-neutral-600">{{ t("cart.shipping") }}</dt>
+          <dd class="text-end">
+            {% if quote.shipping_quote.quote_on_contact %}
+              {# "Not included, will be contacted" (Part I §2.2) — the order is
+                 placed with shipping unpriced and staff quote it after. #}
+              <span class="text-sm text-warning-700">{{ t("cart.shipping_on_contact") }}</span>
+            {% elif quote.shipping_quote.is_free %}
+              <span class="text-sm font-medium text-success-600">{{ t("checkout.free_shipping") }}</span>
+            {% else %}
+              <span class="tabular font-medium">{{ money(quote.shipping_amt) }}</span>
+            {% endif %}
+          </dd>
+        </div>
+
+        <div class="flex items-center justify-between gap-4 border-t border-neutral-200 pt-3">
+          <dt class="font-semibold text-navy-900">{{ t("cart.total") }}</dt>
+          <dd class="price">{{ money(quote.total_amt) }}</dd>
+        </div>
+      </dl>
+
+      {% if currency != "JOD" %}
+        <p class="mt-2 text-xs text-neutral-500">
+          {{ t("checkout.charged_in_jod") }}
+        </p>
+      {% endif %}
+
+      <button type="submit" class="btn-primary btn-block btn-lg mt-5"
+              {% if not email_verified %}disabled{% endif %}>
+        {{ t("checkout.place_order") }}
+      </button>
+
+      <a href="/cart" class="mt-3 block text-center text-sm link">{{ t("checkout.back_to_cart") }}</a>
+    </aside>
+  </form>
+</div>
+{% endblock %}

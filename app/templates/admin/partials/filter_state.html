@@ -1,0 +1,23 @@
+{# Carry the query parameters this filter form does not own.
+
+   A GET form submits only its own fields, so every parameter absent from it is
+   silently dropped on submit. That is how the dashboard's "awaiting a shipping
+   quote" tile loses its filter: it links to /admin/orders?shipping=pending,
+   the orders filter bar has no `shipping` control, and the first press of
+   "Filter" quietly widens the list back to every order — with the same tile
+   count still showing in the corner.
+
+   Include this inside the form, naming the parameters the form *does* own:
+
+     {% with owned = ["q", "status", "payment", "page"] %}
+       {% include "admin/partials/filter_state.html" %}
+     {% endwith %}
+
+   `page` belongs in `owned` even though no control renders it: changing a
+   filter should land you on page 1, not page 7 of a different result set.
+#}
+{%- for key, value in request.query_params.multi_items() -%}
+  {%- if key not in owned -%}
+    <input type="hidden" name="{{ key }}" value="{{ value }}">
+  {%- endif -%}
+{%- endfor -%}

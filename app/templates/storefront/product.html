@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+{% import "partials/stars.html" as stars %}
+
+{# Product detail. The top-to-bottom flow is the one customers already know
+   (§17.3): breadcrumb → gallery with zoom → title/meta panel → stepper →
+   Add to Cart → detail below. What changes is the execution.
+#}
+
+{% block title %}{{ localized(product) }} — {{ t("site.name") }}{% endblock %}
+{% block meta_description %}{{ (localized(product, "short_description") or localized(product, "description")) | striptags | truncate(160) }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ settings.app_base_url }}{{ product_url(product) }}">{% endblock %}
+
+{% block og %}
+  <meta property="og:type" content="product">
+  <meta property="og:title" content="{{ localized(product) }}">
+  {% if product.main_image_path %}
+    <meta property="og:image" content="{{ settings.app_base_url }}{{ media(product.main_image_path) }}">
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+
+  <nav aria-label="breadcrumb" class="mb-5">
+    <ol class="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
+      <li><a href="/" class="hover:text-primary-700">{{ t("nav.home") }}</a></li>
+      {% for ancestor in trail %}
+        <li aria-hidden="true">{{ icon.chevron_forward(class="h-3 w-3") }}</li>
+        <li><a href="{{ category_url(ancestor) }}" class="hover:text-primary-700">{{ localized(ancestor) }}</a></li>
+      {% endfor %}
+      <li aria-hidden="true">{{ icon.chevron_forward(class="h-3 w-3") }}</li>
+      <li><span class="font-medium text-navy-900" aria-current="page">{{ localized(product) | truncate(60) }}</span></li>
+    </ol>
+  </nav>
+
+  <div class="grid gap-8 lg:grid-cols-2 lg:gap-12">
+
+    {# ================= Gallery with lightbox (Part I §5.2) ============== #}
+    <div x-data="{
+           active: 0,
+           lightbox: false,
+           images: {{ gallery_urls | tojson | forceescape }},
+           next() { this.active = (this.active + 1) % this.images.length },
+           prev() { this.active = (this.active - 1 + this.images.length) % this.images.length }
+         }"
+         @keydown.escape.window="lightbox = false"
+         @keydown.arrow-right.window="lightbox && next()"
+         @keydown.arrow-left.window="lightbox && prev()">
+
+      <div class="card overflow-hidden">
+        <button type="button"
+                class="group relative block aspect-square w-full bg-white"
+                @click="lightbox = true"
+                aria-label="{{ t('product.quick_view') }}"
+                {% if not gallery_urls %}disabled{% endif %}>
+          <template x-if="images.length">
+            <img :src="images[active]" alt="{{ localized(product) }}"
+                 class="h-full w-full object-contain p-6">
+          </template>
+          {% if not gallery_urls %}
+            <span class="flex h-full w-full flex-col items-center justify-center gap-2 text-neutral-300">
+              {{ icon.package(class="h-14 w-14") }}
+              <span class="text-sm">{{ t("product.no_image") }}</span>
+            </span>
+          {% endif %}
+          <span class="absolute end-3 top-3 flex h-10 w-10 items-center justify-center
+                       rounded-full bg-white/90 text-neutral-600 shadow-sm
+                       transition group-hover:bg-primary-600 group-hover:text-white">
+            {{ icon.zoom() }}
+          </span>
+        </button>
+      </div>
+
+      {# Thumbnail strip for navigating between images (Part I §5.2). #}
+      {% if gallery_urls | length > 1 %}
+        <div class="mt-3 flex gap-2 overflow-x-auto pb-1">
+          <template x-for="(image, index) in images" :key="index">
+            <button type="button" @click="active = index"
+                    class="h-16 w-16 shrink-0 overflow-hidden rounded-control border bg-white p-1 transition"
+                    :class="active === index ? 'border-primary-600 ring-1 ring-primary-600' : 'border-neutral-200 hover:border-neutral-400'"
+                    :aria-current="active === index">
+              <img :src="image" alt="" class="h-full w-full object-contain">
+            </button>
+          </template>
+        </div>
+      {% endif %}
+
+      {# Lightbox. Works on touch and with a keyboard. #}
+      <div x-show="lightbox" x-cloak
+           class="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/90 p-4"
+           x-transition.opacity
+           role="dialog" aria-modal="true">
+        <button type="button" class="absolute end-4 top-4 btn-icon text-white hover:bg-white/15"
+                @click="lightbox = false" aria-label="{{ t('common.close') }}">
+          {{ icon.close(class="h-6 w-6") }}
+        </button>
+        <button type="button" class="absolute start-4 btn-icon text-white hover:bg-white/15"
+                @click="prev()" x-show="images.length > 1" aria-label="{{ t('common.previous') }}">
+          {{ icon.chevron_back(class="h-6 w-6") }}
+        </button>
+        <img :src="images[active]" alt="{{ localized(product) }}"
+             class="max-h-[85vh] max-w-full object-contain" @click.stop>
+        <button type="button" class="absolute end-4 btn-icon text-white hover:bg-white/15"
+                @click="next()" x-show="images.length > 1" aria-label="{{ t('common.next') }}">
+          {{ icon.chevron_forward(class="h-6 w-6") }}
+        </button>
+      </div>
+    </div>
+
+    {# ================= Meta panel ====================================== #}
+    <div>
+      {% if product.publisher %}
+        <a href="{{ publisher_url(product.publisher) }}"
+           class="text-sm font-medium text-secondary-700 hover:underline">
+          {{ localized(product.publisher) }}
+        </a>
+      {% endif %}
+
+      <h1 class="mt-1">{{ localized(product) }}</h1>
+
+      {# Rating summary, linked to the tab that explains it (§14). The tab
+         state lives further down the page, so this is a plain anchor and the
+         tab strip reads the hash itself. #}
+      <a href="#reviews" class="mt-2 inline-block"
+         aria-label="{{ t('product.reviews') }}">
+        {{ stars.summary(rating, t, num) }}
+      </a>
+
+      {# Social-proof counters, shown only where Admin has switched them on
+         (Part I §5.3) — storewide default with a per-item override. #}
+      {% if show_view_count or show_purchase_count %}
+        <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500">
+          {% if show_view_count %}
+            <span class="inline-flex items-center gap-1.5">
+              {{ icon.eye(class="h-4 w-4") }}
+              <span class="tabular">{{ num(product.view_count) }}</span> {{ t("product.views") }}
+            </span>
+          {% endif %}
+          {% if show_purchase_count %}
+            <span class="inline-flex items-center gap-1.5">
+              {{ icon.cart(class="h-4 w-4") }}
+              <span class="tabular">{{ num(product.purchase_count) }}</span> {{ t("product.purchases") }}
+            </span>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {# --- Price --- #}
+      <div class="mt-5 flex flex-wrap items-baseline gap-3">
+        <span class="price-lg">{{ money(price.final_amt) }}</span>
+        {% if price.has_discount %}
+          <span class="text-lg text-neutral-400 line-through">{{ money(price.list_amt) }}</span>
+          <span class="badge-discount">
+            {{ t("product.discount_badge", percent=percentage(price.discount_percentage)) }}
+          </span>
+        {% endif %}
+      </div>
+      {% if currency != "JOD" %}
+        {# The stored currency is always JOD; say so rather than implying the
+           USD figure is what gets charged (Part I §1.1). #}
+        <p class="mt-1 text-xs text-neutral-500">
+          {{ t("currency.jod") }} {{ num(price.final_amt, decimals=3) }}
+        </p>
+      {% endif %}
+
+      {# --- Availability, and where (Part I §5.3) --- #}
+      <div class="mt-5 space-y-2">
+        <p class="flex items-center gap-2 text-sm">
+          <span class="text-neutral-500">{{ t("product.availability") }}:</span>
+          <span class="{{ availability.badge_class }}">{{ t(availability.translation_key) }}</span>
+        </p>
+        {% set branches = availability.branch_names_ar if lang == "ar" else availability.branch_names_en %}
+        {% if branches %}
+          <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-600">
+            {{ icon.pin(class="h-4 w-4 shrink-0 text-neutral-400") }}
+            <span class="text-neutral-500">{{ t("product.available_at") }}:</span>
+            {% for branch in branches %}
+              <span class="badge-neutral">{{ branch }}</span>
+            {% endfor %}
+          </p>
+        {% endif %}
+      </div>
+
+      {# --- Variant picker + stepper + add to cart --- #}
+      <form hx-post="/cart/add" hx-swap="none" class="mt-6 space-y-5"
+            x-data="{ quantity: 1 }">
+        <input type="hidden" name="product_id" value="{{ product.pk_product_id }}">
+
+        {% if variant_axes %}
+          <div class="space-y-4">
+            {% for axis in variant_axes %}
+              <fieldset>
+                <legend class="field-label">{{ t("product.choose_option", option=localized(axis.option)) }}</legend>
+                <div class="flex flex-wrap gap-2">
+                  {% for choice in axis.choices %}
+                    <label class="cursor-pointer">
+                      <input type="radio" name="option_{{ axis.option.pk_variant_option_id }}"
+                             value="{{ choice.pk_variant_option_choice_id }}"
+                             class="peer sr-only"
+                             {% if loop.first %}checked{% endif %}>
+                      <span class="flex min-h-11 items-center gap-2 rounded-control border
+                                   border-neutral-300 px-3.5 text-sm font-medium text-neutral-700
+                                   transition hover:border-neutral-400
+                                   peer-checked:border-primary-600 peer-checked:bg-primary-50
+                                   peer-checked:text-primary-700
+                                   peer-focus-visible:ring-2 peer-focus-visible:ring-secondary-600">
+                        {% if choice.swatch_hex %}
+                          <span class="h-4 w-4 rounded-full border border-black/10"
+                                style="background-color: {{ choice.swatch_hex }}"></span>
+                        {% endif %}
+                        {{ localized(choice, "value") }}
+                      </span>
+                    </label>
+                  {% endfor %}
+                </div>
+              </fieldset>
+            {% endfor %}
+          </div>
+        {% elif selectable_variants %}
+          {# No structured option matrix, just named variants (§5.4). Without
+             this the shopper would get the first one silently. #}
+          <fieldset>
+            <legend class="field-label">{{ t("product.choose_variant") }}</legend>
+            <div class="flex flex-wrap gap-2">
+              {% for variant in selectable_variants %}
+                <label class="cursor-pointer">
+                  <input type="radio" name="variant_id" value="{{ variant.pk_product_variant_id }}"
+                         class="peer sr-only" {% if loop.first %}checked{% endif %}>
+                  <span class="flex min-h-11 items-center gap-2 rounded-control border
+                               border-neutral-300 px-3.5 text-sm font-medium text-neutral-700
+                               transition hover:border-neutral-400
+                               peer-checked:border-primary-600 peer-checked:bg-primary-50
+                               peer-checked:text-primary-700
+                               peer-focus-visible:ring-2 peer-focus-visible:ring-secondary-600">
+                    {% if variant.name_ar or variant.name_en %}
+                      {{ localized(variant) }}
+                    {% else %}
+                      <span dir="ltr">{{ variant.sku }}</span>
+                    {% endif %}
+                  </span>
+                </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+        {% elif default_variant %}
+          <input type="hidden" name="variant_id" value="{{ default_variant.pk_product_variant_id }}">
+        {% endif %}
+
+        <div class="flex flex-wrap items-end gap-3">
+          <div>
+            <label for="quantity" class="field-label">{{ t("product.quantity") }}</label>
+            <div class="stepper">
+              <button type="button" class="stepper__btn" @click="quantity = Math.max(1, quantity - 1)"
+                      aria-label="{{ t('product.decrease') }}">{{ icon.minus(class="h-4 w-4") }}</button>
+              <input id="quantity" type="number" name="quantity" min="1" x-model.number="quantity"
+                     class="stepper__input" aria-label="{{ t('product.quantity') }}">
+              <button type="button" class="stepper__btn" @click="quantity++"
+                      aria-label="{{ t('product.increase') }}">{{ icon.plus(class="h-4 w-4") }}</button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary btn-lg flex-1"
+                  {% if not availability.is_purchasable %}disabled{% endif %}>
+            {{ icon.cart() }}
+            {{ t("product.add_to_cart") }}
+          </button>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          {% include "partials/wishlist_button.html" %}
+          <button type="button" class="btn-outline btn-sm"
+                  hx-post="/compare/toggle"
+                  hx-vals='{"product_id": {{ product.pk_product_id }}}' hx-swap="none">
+            {{ icon.compare(class="h-4 w-4") }} {{ t("product.add_to_compare") }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ================= Detail tabs ====================================== #}
+  {# The reviews tab opens by itself when the page is anchored there — from the
+     rating summary above, or from the redirect after submitting a review.
+     Otherwise a customer who just wrote one lands on the description and
+     concludes it was lost. #}
+  <div class="mt-section" id="reviews"
+       x-data="{ tab: location.hash === '#reviews' ? 'reviews' : 'description' }"
+       @hashchange.window="if (location.hash === '#reviews') tab = 'reviews'">
+    <div class="tab-strip" role="tablist">
+      <button type="button" class="tab" :class="tab === 'description' && 'tab--active'"
+              @click="tab = 'description'" role="tab" :aria-selected="tab === 'description'">
+        {{ t("product.description") }}
+      </button>
+      {% if specifications %}
+        <button type="button" class="tab" :class="tab === 'specs' && 'tab--active'"
+                @click="tab = 'specs'" role="tab" :aria-selected="tab === 'specs'">
+          {{ t("product.specifications") }}
+        </button>
+      {% endif %}
+      <button type="button" class="tab" :class="tab === 'reviews' && 'tab--active'"
+              @click="tab = 'reviews'" role="tab" :aria-selected="tab === 'reviews'">
+        {{ t("product.reviews") }}
+      </button>
+    </div>
+
+    <div class="card mt-4 p-5 lg:p-6">
+      <div x-show="tab === 'description'" role="tabpanel"
+           class="max-w-3xl leading-relaxed text-neutral-700">
+        {{ localized(product, "description") or localized(product, "short_description") or "—" }}
+      </div>
+
+      {% if specifications %}
+        <div x-show="tab === 'specs'" x-cloak role="tabpanel">
+          <dl class="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+            {% for spec in specifications %}
+              <div class="flex justify-between gap-4 border-b border-neutral-100 pb-2">
+                <dt class="text-sm text-neutral-500">{{ spec.label }}</dt>
+                <dd class="text-sm font-medium text-navy-900">{{ spec.value }}</dd>
+              </div>
+            {% endfor %}
+          </dl>
+        </div>
+      {% endif %}
+
+      <div x-show="tab === 'reviews'" x-cloak role="tabpanel" class="space-y-6">
+
+        {# --- Outcome of a just-submitted review (§14) --- #}
+        {% if review_flash %}
+          {# Written out rather than interpolated: Tailwind scans for whole
+             class names, so a composed one is never emitted into the CSS. #}
+          {% set tone = "border-success-100 bg-success-50 text-success-700"
+             if review_flash == "submitted"
+             else "border-warning-100 bg-warning-50 text-warning-700" %}
+          <div class="flex items-start gap-2 rounded-card border p-3 text-sm {{ tone }}"
+               role="status">
+            {{ icon.info(class="h-4 w-4 shrink-0 mt-0.5") }}
+            <p>{{ t("product.review_" ~ review_flash) }}</p>
+          </div>
+        {% endif %}
+
+        {# --- The score at a glance --- #}
+        {% if rating.has_reviews %}
+          <div class="grid gap-6 sm:grid-cols-[auto,1fr] sm:items-center">
+            <div class="text-center">
+              <p class="text-4xl font-bold text-navy-900 tabular">
+                {{ num(rating.average, decimals=1) }}
+              </p>
+              {{ stars.rating(rating.average, "h-5") }}
+              <p class="mt-1 text-xs text-neutral-500">
+                {{ t("product.review_count", count=num(rating.count)) }}
+              </p>
+            </div>
+            <dl class="space-y-1.5">
+              {% for star in rating_scale %}
+                <div class="flex items-center gap-3 text-xs">
+                  <dt class="w-6 shrink-0 text-end text-neutral-500 tabular">{{ num(star) }}</dt>
+                  <dd class="flex-1">
+                    <div class="h-2 overflow-hidden rounded-full bg-neutral-100">
+                      <div class="h-full rounded-full bg-star"
+                           style="width: {{ rating.share(star) }}%"></div>
+                    </div>
+                  </dd>
+                  <span class="w-10 shrink-0 text-neutral-400 tabular">
+                    {{ num(rating.distribution.get(star, 0)) }}
+                  </span>
+                </div>
+              {% endfor %}
+            </dl>
+          </div>
+        {% endif %}
+
+        {# --- Write one (§14) --- #}
+        {% if can_review %}
+          <form method="post" action="/products/{{ product.pk_product_id }}/review"
+                class="card space-y-4 p-5" x-data="{ rating: 0, hovered: 0 }">
+            <h3 class="text-sm font-semibold text-navy-900">{{ t("product.write_review") }}</h3>
+
+            <fieldset>
+              <legend class="field-label">{{ t("product.your_rating") }}</legend>
+              {# Radios, not a widget: this works with a keyboard and without
+                 JavaScript, and Alpine only adds the hover preview. #}
+              <div class="mt-1 flex items-center gap-1" @mouseleave="hovered = 0">
+                {% for star in [1, 2, 3, 4, 5] %}
+                  <label class="cursor-pointer p-0.5"
+                         @mouseenter="hovered = {{ star }}"
+                         :class="(hovered || rating) >= {{ star }} ? 'text-star' : 'text-star-empty'">
+                    <input type="radio" name="rating" value="{{ star }}" class="sr-only peer"
+                           x-model.number="rating" required
+                           aria-label="{{ t('product.stars_n', count=num(star)) }}">
+                    <svg viewBox="0 0 20 20" class="h-7 w-7 fill-current
+                                peer-focus-visible:ring-2 peer-focus-visible:ring-secondary-500
+                                rounded" aria-hidden="true">
+                      <path d="M10 1.6l2.5 5.4 5.9.7-4.4 4 1.2 5.8L10 14.6 4.8 17.5 6 11.7 1.6 7.7l5.9-.7z"/>
+                    </svg>
+                  </label>
+                {% endfor %}
+              </div>
+            </fieldset>
+
+            <div>
+              <label for="review-title" class="field-label">
+                {{ t("product.review_title") }}
+                <span class="field-optional">({{ t("auth.optional") }})</span>
+              </label>
+              <input id="review-title" type="text" name="title" maxlength="200" class="input">
+            </div>
+
+            <div>
+              <label for="review-body" class="field-label">
+                {{ t("product.review_body") }}
+                <span class="field-optional">({{ t("auth.optional") }})</span>
+              </label>
+              <textarea id="review-body" name="body" rows="4" maxlength="4000"
+                        class="input" placeholder="{{ t('product.review_placeholder') }}"></textarea>
+            </div>
+
+            {# §14 requires moderation before publishing. Saying so here is the
+               difference between a wait and a bug. #}
+            <p class="text-xs text-neutral-500">{{ t("product.review_moderation_note") }}</p>
+
+            <button type="submit" class="btn-primary">{{ t("product.submit_review") }}</button>
+          </form>
+        {% elif my_review %}
+          <div class="rounded-card border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+            {{ t("product.review_pending") if my_review.status == "pending"
+               else t("product.review_already") }}
+          </div>
+        {% else %}
+          <p class="text-sm text-neutral-500">
+            <a href="/auth/login?next={{ product_url(product) | urlencode }}" class="link font-semibold">
+              {{ t("header.login") }}</a>
+            {{ t("product.login_to_review") }}
+          </p>
+        {% endif %}
+
+        {# --- What people said --- #}
+        {% if reviews %}
+          <ul class="space-y-5">
+            {% for review in reviews %}
+              <li class="border-b border-neutral-100 pb-4 last:border-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  {{ stars.rating(review.rating) }}
+                  {% if review.title %}
+                    <span class="text-sm font-semibold text-navy-900">{{ review.title }}</span>
+                  {% endif %}
+                  {% if review.verified_purchase_flag %}
+                    <span class="badge-success inline-flex items-center gap-1">
+                      {{ icon.check(class="h-3 w-3") }} {{ t("product.verified_purchase") }}
+                    </span>
+                  {% endif %}
+                </div>
+                {% if review.body %}
+                  <p class="mt-1.5 text-sm leading-relaxed text-neutral-600">{{ review.body }}</p>
+                {% endif %}
+                <p class="mt-1.5 text-xs text-neutral-400">
+                  {{ reviewer_names.get(review.fk_user_id, t("product.reviewer_anonymous")) }}
+                  &middot; {{ date(review.submitted_dt) }}
+                </p>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="py-4 text-center text-sm text-neutral-500">{{ t("product.no_reviews_yet") }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# --- Tags (Part I §15: clickable, with their own results page) ------ #}
+  {% if tags %}
+    <div class="mt-8 flex flex-wrap items-center gap-2">
+      {% for tag in tags %}
+        <a href="{{ tag_url(tag) }}" class="badge-neutral hover:bg-neutral-300">{{ localized(tag) }}</a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# --- Related products ------------------------------------------------ #}
+  {% if related %}
+    <section class="mt-section">
+      {% with title = t("product.related") %}
+        {% include "partials/section_head.html" %}
+      {% endwith %}
+      <div class="carousel-rail lg:grid lg:grid-cols-6 lg:overflow-visible">
+        {% for product in related %}
+          {% with price = related_prices[product.pk_product_id],
+                  availability = related_availability[product.pk_product_id],
+                  ratings = related_ratings %}
+            {% include "partials/product_card.html" %}
+          {% endwith %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

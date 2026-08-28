@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("header.orders") }} - {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <h1>{{ t("header.orders") }}</h1>
+    <div class="flex gap-2">
+      <a href="/account/returns" class="btn-outline btn-sm">{{ t("returns.mine") }}</a>
+      <a href="/account" class="btn-outline btn-sm">{{ t("header.my_account") }}</a>
+    </div>
+  </div>
+
+  {% if orders %}
+    <div class="mt-6 space-y-3">
+      {% for order in orders %}
+        <article class="card p-4">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 class="text-lg">{{ order.order_number }}</h2>
+              <p class="text-sm text-neutral-500">{{ datetime(order.placed_dt) }}</p>
+            </div>
+            <div class="text-start sm:text-end">
+              <p class="price">{{ money(order.total_amt) }}</p>
+              <span class="badge-neutral">{{ t("orders.status_" ~ order.status) }}</span>
+            </div>
+          </div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <a href="/orders/track?order_number={{ order.order_number }}" class="btn-secondary btn-sm">
+              {{ icon.package(class="h-4 w-4") }} {{ t("orders.track") }}
+            </a>
+            {# §2.6: customers view and download their past invoices. #}
+            <a href="/account/orders/{{ order.order_number }}/invoice" target="_blank"
+               rel="noopener" class="btn-outline btn-sm">
+              {{ icon.receipt(class="h-4 w-4") }} {{ t("invoice.view") }}
+            </a>
+            {# §12: a customer can start a return themselves, but only on goods
+               that have actually reached them. #}
+            {% if order.pk_order_id in returnable %}
+              <a href="/account/returns/new/{{ order.order_number }}" class="btn-outline btn-sm">
+                {{ t("returns.request") }}
+              </a>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="state-panel mt-6">
+      {{ icon.receipt(class="h-10 w-10 text-neutral-300") }}
+      <p class="state-panel__title">{{ t("account.empty_orders") }}</p>
+      <a href="/categories" class="btn-secondary btn-sm mt-2">{{ t("cart.continue_shopping") }}</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

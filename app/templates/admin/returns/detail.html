@@ -1,0 +1,218 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ order_return.return_number }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = order_return.return_number, title_ltr = true, subtitle = t("returns.detail_purpose"),
+          back_href = "/admin/returns", back_label = t("admin.returns") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  {# A withdrawn return has no action buttons below, so say why rather than
+     leaving staff to wonder whether the screen is broken. #}
+  {% if order_return.status == "withdrawn" %}
+    <div class="flex items-start gap-2 rounded-card border border-neutral-200 bg-neutral-50 p-3
+                text-sm text-neutral-600" role="status">
+      {{ icon.info(class="h-4 w-4 shrink-0") }}
+      <p>{{ t("admin.return_withdrawn_notice") }}</p>
+    </div>
+  {% endif %}
+
+  {# --- Progress through the gate (Part I §12) ------------------------- #}
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title" dir="ltr">{{ order_return.return_number }}</h2>
+      {% set tone = {"requested":"badge-neutral","under_inspection":"badge-warning",
+                     "approved":"badge-success","rejected":"badge-danger",
+                     "refunded":"badge-success"} %}
+      <span class="{{ tone.get(order_return.status, 'badge-neutral') }}">
+        {{ t("returns.status_" ~ order_return.status) }}
+      </span>
+      {% if order %}
+        <a href="/admin/orders/{{ order.pk_order_id }}"
+           class="ms-auto text-xs font-semibold text-secondary-700 hover:underline" dir="ltr">
+          {{ order.order_number }}
+        </a>
+      {% endif %}
+    </div>
+
+    <div class="admin-panel__body">
+      <dl class="admin-dl lg:grid-cols-4">
+        <div>
+          <dt>{{ t("admin.customer") }}</dt>
+          <dd>{{ customer.username if customer else "—" }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("returns.reason") }}</dt>
+          <dd>{{ t("returns.reason_" ~ order_return.reason_code) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("returns.refund_amount") }}</dt>
+          <dd class="price">{{ money(order_return.refund_amt) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("returns.inspected") }}</dt>
+          <dd>{{ datetime(order_return.inspected_dt) if order_return.inspected_dt else "—" }}</dd>
+        </div>
+        {% if order_return.reason_detail %}
+          <div class="sm:col-span-2 lg:col-span-4">
+            <dt>{{ t("returns.customer_note") }}</dt>
+            <dd class="font-normal text-neutral-600">{{ order_return.reason_detail }}</dd>
+          </div>
+        {% endif %}
+        {% if order_return.inspection_note %}
+          <div class="sm:col-span-2 lg:col-span-4">
+            <dt>{{ t("returns.inspection_note") }}</dt>
+            <dd class="font-normal text-neutral-600">{{ order_return.inspection_note }}</dd>
+          </div>
+        {% endif %}
+      </dl>
+    </div>
+  </section>
+
+  {# --- Lines ---------------------------------------------------------- #}
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("returns.items") }}</h2>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>{{ t("admin.product") }}</th>
+            <th class="num">{{ t("product.quantity") }}</th>
+            <th>{{ t("returns.restock") }}</th>
+            <th class="num">{{ t("returns.refund_amount") }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in lines %}
+            {% set ol = order_lines.get(line.fk_order_line_id) %}
+            <tr>
+              <td>
+                <span class="font-medium text-navy-900">
+                  {{ (ol.product_name_ar if lang == "ar" else ol.product_name_en) if ol else "—" }}
+                </span>
+                {% if ol and ol.sku %}
+                  <span class="block text-2xs text-neutral-400" dir="ltr">{{ ol.sku }}</span>
+                {% endif %}
+              </td>
+              <td class="num">{{ num(line.quantity) }}</td>
+              <td>
+                {% if line.restock_flag %}
+                  <span class="badge-success">{{ t("returns.restockable") }}</span>
+                {% else %}
+                  <span class="badge-danger">{{ t("returns.write_off") }}</span>
+                {% endif %}
+              </td>
+              <td class="num">{{ money(line.refund_amt) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {# --- Step 1: inspection. The gate before any money moves (§12). ----- #}
+  {% if order_return.status in ["requested", "under_inspection"] %}
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("returns.inspection") }}</h2>
+        <span class="badge-warning ms-auto">{{ t("returns.gate_hint") }}</span>
+      </div>
+      <form method="post" action="/admin/returns/{{ order_return.pk_order_return_id }}/inspect"
+            class="admin-panel__body space-y-4">
+
+        <div class="space-y-2">
+          <p class="field-label">{{ t("returns.restock_per_line") }}</p>
+          {% for line in lines %}
+            {% set ol = order_lines.get(line.fk_order_line_id) %}
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="restock_{{ line.pk_order_return_line_id }}" value="1"
+                     {% if line.restock_flag %}checked{% endif %}
+                     class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+              <span>{{ (ol.product_name_ar if lang == "ar" else ol.product_name_en) if ol else "—" }}
+                <span class="text-neutral-500">&times;{{ num(line.quantity) }}</span></span>
+            </label>
+          {% endfor %}
+          <p class="field-hint">{{ t("returns.restock_hint") }}</p>
+        </div>
+
+        <div>
+          <label for="note" class="field-label">{{ t("returns.inspection_note") }}</label>
+          <textarea id="note" name="note" rows="2" class="input"></textarea>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button type="submit" name="condition_acceptable" value="1" class="btn-primary btn-sm">
+            {{ icon.check(class="h-4 w-4") }} {{ t("returns.accept") }}
+          </button>
+          <button type="submit" name="condition_acceptable" value="0" class="btn-outline btn-sm">
+            {{ t("returns.reject") }}
+          </button>
+        </div>
+      </form>
+    </section>
+  {% endif %}
+
+  {# --- Step 2: refund. Only reachable once inspection passed. --------- #}
+  {% if order_return.status == "approved" %}
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("returns.issue_refund") }}</h2>
+      </div>
+      <form method="post" action="/admin/returns/{{ order_return.pk_order_return_id }}/refund"
+            class="admin-panel__body space-y-4"
+            x-data="{ destination: 'money_box' }">
+
+        <div class="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label for="destination" class="field-label">{{ t("returns.destination") }}</label>
+            <select id="destination" name="destination" x-model="destination"
+                    class="input h-9 min-h-0 py-0 text-sm">
+              <option value="money_box">{{ t("admin.refund_money_box") }}</option>
+              <option value="store_credit">{{ t("admin.refund_store_credit") }}</option>
+            </select>
+          </div>
+
+          <div x-show="destination === 'money_box'">
+            <label for="money_box_id" class="field-label">{{ t("admin.money_box") }}</label>
+            <select id="money_box_id" name="money_box_id" class="input h-9 min-h-0 py-0 text-sm">
+              {% for box in boxes %}
+                <option value="{{ box.pk_money_box_id }}">{{ localized(box) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label for="amount_amt" class="field-label">{{ t("admin.amount") }}</label>
+            <input id="amount_amt" name="amount_amt" type="text" inputmode="decimal" dir="ltr"
+                   value="{{ order_return.refund_amt }}"
+                   class="input h-9 min-h-0 py-0 text-sm">
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary btn-sm">{{ t("returns.issue_refund") }}</button>
+      </form>
+    </section>
+  {% endif %}
+
+  {% if order_return.status == "refunded" %}
+    <div class="flex items-center gap-2 rounded-card border border-success-100 bg-success-50 p-4
+                text-sm text-success-700">
+      {{ icon.check_circle(class="h-5 w-5 shrink-0") }}
+      <p>
+        {{ t("returns.refunded_on", date=datetime(order_return.refunded_dt)) }}
+        &mdash;
+        {{ t("admin.refund_store_credit") if order_return.refund_destination == "store_credit"
+           else t("admin.refund_money_box") }}
+      </p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

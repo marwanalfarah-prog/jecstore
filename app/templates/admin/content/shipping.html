@@ -1,0 +1,141 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Shipping rules (Part I §2.2).
+
+   Rules resolve most-specific-first: governorate, then country, then the global
+   fallback. They are listed in that resolution order so the effect of adding
+   one is obvious.
+#}
+
+{% block title %}{{ t("content.shipping") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("content.shipping"), subtitle = t("content.shipping_purpose"),
+          back_href = "/admin/content", back_label = t("admin.content") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("content.new_rule") }}</h2>
+    </div>
+    <form method="post" action="/admin/content/shipping"
+          class="admin-panel__body grid gap-3 sm:grid-cols-3"
+          x-data="{ contact: false }">
+      <div>
+        <label for="country_id" class="field-label">{{ t("auth.country") }}</label>
+        <select id="country_id" name="country_id" class="input h-9 min-h-0 py-0 text-sm">
+          <option value="">{{ t("content.everywhere_else") }}</option>
+          {% for country in countries %}
+            <option value="{{ country.pk_country_id }}">{{ localized(country) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="province_id" class="field-label">{{ t("auth.province") }}</label>
+        <select id="province_id" name="province_id" class="input h-9 min-h-0 py-0 text-sm">
+          <option value="">{{ t("content.whole_country") }}</option>
+          {% for province in provinces %}
+            <option value="{{ province.pk_province_id }}">{{ localized(province) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="priority" class="field-label">{{ t("content.priority") }}</label>
+        <input id="priority" name="priority" type="number" value="0"
+               class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+
+      <div x-show="!contact">
+        <label for="cost_amt" class="field-label">{{ t("cart.shipping") }}</label>
+        <input id="cost_amt" name="cost_amt" type="text" inputmode="decimal" dir="ltr"
+               value="0" class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+      <div x-show="!contact">
+        <label for="free_above_amt" class="field-label">{{ t("content.free_above") }}</label>
+        <input id="free_above_amt" name="free_above_amt" type="text" inputmode="decimal"
+               dir="ltr" class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+
+      {# The third outcome §2.2 requires alongside a price. #}
+      <label class="flex items-end gap-2 pb-1 text-sm">
+        <input type="checkbox" name="quote_on_contact" value="1" x-model="contact"
+               class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+        {{ t("content.quote_on_contact") }}
+      </label>
+
+      <div class="sm:col-span-3">
+        <button type="submit" class="btn-primary btn-sm">{{ t("content.new_rule") }}</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("content.rules") }}</h2>
+      <span class="ms-auto text-xs text-neutral-500">{{ t("content.resolution_hint") }}</span>
+    </div>
+    {% if rules %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("content.destination") }}</th>
+              <th class="num">{{ t("cart.shipping") }}</th>
+              <th class="num">{{ t("content.free_above") }}</th>
+              <th class="num">{{ t("content.priority") }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rules %}
+              <tr>
+                <td>
+                  {% if row.province %}
+                    <span class="font-medium">{{ localized(row.province) }}</span>
+                    <span class="text-xs text-neutral-500">
+                      ({{ localized(row.country) if row.country else "" }})
+                    </span>
+                  {% elif row.country %}
+                    <span class="font-medium">{{ localized(row.country) }}</span>
+                  {% else %}
+                    <span class="text-neutral-500">{{ t("content.everywhere_else") }}</span>
+                  {% endif %}
+                </td>
+                <td class="num">
+                  {% if row.rule.quote_on_contact_flag %}
+                    <span class="badge-warning">{{ t("cart.shipping_on_contact") }}</span>
+                  {% else %}
+                    {{ money(row.rule.cost_amt) }}
+                  {% endif %}
+                </td>
+                <td class="num text-neutral-500">
+                  {{ money(row.rule.free_above_amt) if row.rule.free_above_amt else "—" }}
+                </td>
+                <td class="num">{{ num(row.rule.priority) }}</td>
+                <td class="text-end">
+                  <form method="post"
+                        action="/admin/content/shipping/{{ row.rule.pk_shipping_rule_id }}/remove" data-confirm="{{ t('content.confirm_remove_rule') }}">
+                    <button type="submit" class="btn-ghost btn-sm text-danger-600">
+                      {{ t("content.remove") }}
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        <p class="text-sm text-neutral-500">{{ t("listing.no_results") }}</p>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

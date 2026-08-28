@@ -1,0 +1,19 @@
+{# Section header — the modernised descendant of the old crimson bar (§17.3).
+
+   Usage:
+     {% with title = t("home.new_arrivals"), link = "/c/12" %}
+       {% include "partials/section_head.html" %}
+     {% endwith %}
+#}
+{% import "partials/icons.html" as icon %}
+
+<div class="section-head">
+  <h2 class="section-head__title">{{ title }}</h2>
+  <span class="section-head__rule" aria-hidden="true"></span>
+  {% if link %}
+    <a href="{{ link }}" class="section-head__link inline-flex items-center gap-1">
+      {{ link_label | default(t("home.view_all")) }}
+      {{ icon.chevron_forward(class="h-4 w-4") }}
+    </a>
+  {% endif %}
+</div>

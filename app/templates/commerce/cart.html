@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("cart.title") }} - {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <h1>{{ t("cart.title") }}</h1>
+
+  {% if cart_view.lines %}
+    <div class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <div class="space-y-3">
+        {% for item in cart_view.lines %}
+          <article class="card grid gap-4 p-4 sm:grid-cols-[6rem_minmax(0,1fr)_auto]">
+            <a href="{{ product_url(item.product) }}" class="block aspect-square overflow-hidden rounded-card bg-neutral-50">
+              {% if item.product.main_image_path %}
+                <img src="{{ media(item.product.main_image_path) }}" alt=""
+                     class="h-full w-full object-contain p-3" loading="lazy">
+              {% else %}
+                <span class="flex h-full w-full items-center justify-center text-neutral-300">
+                  {{ icon.package(class="h-9 w-9") }}
+                </span>
+              {% endif %}
+            </a>
+
+            <div class="min-w-0">
+              <h2 class="text-lg">
+                <a href="{{ product_url(item.product) }}" class="hover:text-primary-700">
+                  {{ localized(item.product) }}
+                </a>
+              </h2>
+              <p class="mt-1 text-sm text-neutral-500">{{ item.variant.sku }}</p>
+
+              {# Quantity: a real stepper, submitted on change. No JS required —
+                 the form posts and we redirect back, so it works before Alpine
+                 hydrates and with JS off entirely. #}
+              <form method="post" action="/cart/update"
+                    class="mt-3 flex flex-wrap items-center gap-2"
+                    x-data="{ quantity: {{ item.line.quantity }} }">
+                <input type="hidden" name="line_id" value="{{ item.line.pk_cart_line_id }}">
+                <label for="qty-{{ item.line.pk_cart_line_id }}" class="sr-only">
+                  {{ t("product.quantity") }}
+                </label>
+                <div class="stepper">
+                  <button type="button" class="stepper__btn"
+                          @click="quantity = Math.max(1, quantity - 1); $el.form.requestSubmit()"
+                          aria-label="{{ t('product.decrease') }}">
+                    {{ icon.minus(class="h-4 w-4") }}
+                  </button>
+                  <input id="qty-{{ item.line.pk_cart_line_id }}" type="number" name="quantity"
+                         min="0" max="99" value="{{ item.line.quantity }}"
+                         x-model.number="quantity"
+                         class="stepper__input"
+                         @change="$el.form.requestSubmit()">
+                  <button type="button" class="stepper__btn"
+                          @click="quantity = quantity + 1; $el.form.requestSubmit()"
+                          aria-label="{{ t('product.increase') }}">
+                    {{ icon.plus(class="h-4 w-4") }}
+                  </button>
+                </div>
+                {# Fallback for no-JS: an explicit update button. #}
+                <noscript>
+                  <button type="submit" class="btn-outline btn-sm">{{ t("cart.update") }}</button>
+                </noscript>
+              </form>
+            </div>
+
+            <div class="flex flex-col items-start justify-between gap-2 sm:items-end">
+              <div class="text-start sm:text-end">
+                <p class="price">{{ money(item.line_total_amt) }}</p>
+                {% if item.price.has_discount %}
+                  <p class="price-original text-xs">{{ money(item.price.list_amt * item.line.quantity) }}</p>
+                {% endif %}
+                <p class="text-xs text-neutral-500">{{ money(item.price.final_amt) }}</p>
+              </div>
+
+              <form method="post" action="/cart/remove">
+                <input type="hidden" name="line_id" value="{{ item.line.pk_cart_line_id }}">
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 text-xs font-medium
+                               text-neutral-500 transition hover:text-danger-600">
+                  {{ icon.close(class="h-3.5 w-3.5") }}
+                  {{ t("cart.remove") }}
+                </button>
+              </form>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+
+      <aside class="card p-5">
+        <h2 class="text-lg">{{ t("cart.total") }}</h2>
+
+        {# --- Promocode (Part I §13) --- #}
+        <form method="post" action="/cart/promocode" class="mt-4">
+          <label for="promocode" class="field-label">{{ t("cart.promocode") }}</label>
+          <div class="flex gap-2">
+            <input id="promocode" name="promocode" type="text"
+                   value="{{ promocode | default('', true) }}"
+                   class="input flex-1 {% if quote.promocode_error %}input-error{% endif %}"
+                   dir="ltr" autocapitalize="characters" spellcheck="false">
+            <button type="submit" class="btn-outline">{{ t("cart.apply") }}</button>
+          </div>
+          {% if quote.promocode_error %}
+            <p class="field-error">
+              {{ icon.alert(class="h-4 w-4 shrink-0") }}
+              <span>{{ quote.promocode_error }}</span>
+            </p>
+          {% elif quote.promocode_result %}
+            <p class="mt-1.5 flex items-center gap-1.5 text-sm text-success-600">
+              {{ icon.check_circle(class="h-4 w-4 shrink-0") }}
+              <span>{{ quote.promocode_result.code }}</span>
+            </p>
+          {% endif %}
+        </form>
+
+        <dl class="mt-5 space-y-3 border-t border-neutral-200 pt-4 text-sm">
+          <div class="flex items-center justify-between gap-4">
+            <dt class="text-neutral-600">{{ t("cart.subtotal") }}</dt>
+            <dd class="tabular font-medium">{{ money(cart_view.subtotal_amt) }}</dd>
+          </div>
+
+          {% if quote.promocode_discount_amt %}
+            <div class="flex items-center justify-between gap-4">
+              <dt class="text-neutral-600">{{ t("cart.discount") }}</dt>
+              <dd class="tabular font-medium text-success-600">
+                &minus;{{ money(quote.promocode_discount_amt) }}
+              </dd>
+            </div>
+          {% endif %}
+
+          <div class="flex items-center justify-between gap-4">
+            <dt class="text-neutral-600">{{ t("cart.shipping") }}</dt>
+            <dd class="text-end">
+              {# Shipping is only knowable once a destination is chosen, which
+                 happens at checkout. Say so rather than showing a fake zero. #}
+              <span class="text-sm text-neutral-500">{{ t("cart.shipping_at_checkout") }}</span>
+            </dd>
+          </div>
+
+          <div class="flex items-center justify-between gap-4 border-t border-neutral-200 pt-3">
+            <dt class="font-semibold text-navy-900">{{ t("cart.total") }}</dt>
+            <dd class="price">{{ money(cart_view.subtotal_amt - quote.promocode_discount_amt) }}</dd>
+          </div>
+        </dl>
+
+        <a href="/checkout" class="btn-primary btn-block btn-lg mt-5">
+          {{ t("cart.checkout") }}
+          {{ icon.chevron_forward(class="h-4 w-4") }}
+        </a>
+
+        {% if not ctx.is_authenticated %}
+          {# Guest checkout is not offered (Part I §8) — say it here rather than
+             letting them fill in a form and get bounced. #}
+          <p class="mt-3 text-center text-xs text-neutral-500">{{ t("cart.login_required") }}</p>
+        {% endif %}
+
+        <a href="/categories" class="mt-3 block text-center text-sm link">
+          {{ t("cart.continue_shopping") }}
+        </a>
+      </aside>
+    </div>
+  {% else %}
+    <div class="state-panel mt-6">
+      {{ icon.cart(class="h-10 w-10 text-neutral-300") }}
+      <p class="state-panel__title">{{ t("cart.empty") }}</p>
+      <p class="state-panel__body">{{ t("cart.empty_hint") }}</p>
+      <a href="/categories" class="btn-secondary btn-sm mt-2">{{ t("cart.continue_shopping") }}</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

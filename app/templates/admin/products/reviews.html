@@ -1,0 +1,120 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("catalog.reviews") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("catalog.reviews"), subtitle = t("catalog.reviews_purpose"),
+          back_href = "/admin/products", back_label = t("admin.products") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <form method="get" class="admin-filters">
+    {% with owned = ["status", "page"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+    <div>
+      <label for="status" class="field-label">{{ t("admin.status") }}</label>
+      <select id="status" name="status" class="input h-9 min-h-0 py-0 text-sm" data-autosubmit>
+        <option value="">{{ t("listing.all") }}</option>
+        {% for status in statuses %}
+          <option value="{{ status.value }}" {% if selected_status == status.value %}selected{% endif %}>
+            {{ t("catalog.review_status_" ~ status.value) }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn-secondary btn-sm">{{ t("listing.filters") }}</button>
+  </form>
+
+  <section class="admin-panel">
+    {% if reviews %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.product") }}</th>
+              <th>{{ t("catalog.reviewer") }}</th>
+              <th class="num">{{ t("catalog.rating") }}</th>
+              <th>{{ t("catalog.review") }}</th>
+              <th>{{ t("admin.status") }}</th>
+              <th>{{ t("catalog.moderation_note") }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in reviews %}
+              {% set review = row.review %}
+              <tr>
+                <td class="max-w-48">
+                  {# Was `#{{ fk_product_id }}`, so judging a review meant
+                     opening the product in another tab to see what it was
+                     even about. #}
+                  <a class="font-medium text-secondary-700 hover:underline"
+                     href="/admin/products/{{ review.fk_product_id }}">
+                    {{ localized(row.product) if row.product else "—" }}
+                  </a>
+                  <div class="text-xs text-neutral-500">{{ date(review.submitted_dt) }}</div>
+                </td>
+                <td>
+                  {{ row.reviewer.username if row.reviewer else "—" }}
+                  {% if review.verified_purchase_flag %}
+                    {# §14 already computes this from the shop's own order
+                       history. A moderator weighting a review should see it. #}
+                    <span class="mt-0.5 block badge-success">{{ t("product.verified_purchase") }}</span>
+                  {% endif %}
+                </td>
+                <td class="num whitespace-nowrap">
+                  {{ num(review.rating) }}<span class="text-neutral-400">/{{ num(5) }}</span>
+                </td>
+                <td>
+                  <div class="font-medium text-navy-900">{{ review.title or "—" }}</div>
+                  <p class="max-w-xl text-sm text-neutral-600">{{ review.body or "" }}</p>
+                </td>
+                <td>
+                  {% set tone = {"pending":"badge-warning","approved":"badge-success",
+                                 "rejected":"badge-danger"} %}
+                  <span class="{{ tone.get(review.status, 'badge-neutral') }}">
+                    {{ t("catalog.review_status_" ~ review.status) }}
+                  </span>
+                </td>
+                <td class="min-w-56">
+                  <form id="review-{{ review.pk_product_review_id }}" method="post"
+                        action="/admin/products/reviews/{{ review.pk_product_review_id }}/moderate">
+                    <textarea name="note" rows="2" class="input text-sm"
+                              aria-label="{{ t('catalog.moderation_note') }}"
+                              placeholder="{{ t('catalog.moderation_note_hint') }}">{{ review.moderation_note or "" }}</textarea>
+                  </form>
+                </td>
+                <td class="text-end">
+                  <div class="flex flex-wrap justify-end gap-2">
+                    <button form="review-{{ review.pk_product_review_id }}" name="status" value="approved"
+                            class="btn-secondary btn-sm">{{ t("catalog.approve") }}</button>
+                    <button form="review-{{ review.pk_product_review_id }}" name="status" value="rejected"
+                            class="btn-outline btn-sm text-danger-600"
+                            data-confirm="{{ t('catalog.confirm_reject_review') }}">
+                      {{ t("catalog.reject") }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        {% with empty_icon = "list", empty_title = t("catalog.no_reviews"),
+                empty_body = t("catalog.no_reviews_hint") %}
+          {% include "admin/partials/empty.html" %}
+        {% endwith %}
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

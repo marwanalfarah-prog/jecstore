@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Where this account is signed in, and how to end it (Part I §2.6).
+
+   The customer-facing counterpart to the admin session control in §2.3/§2.8:
+   the point is that a customer who left themselves signed in on a shared
+   machine can do something about it without telephoning the shop.
+#}
+
+{% block title %}{{ t("account.sessions") }} — {{ t("site.name") }}{% endblock %}
+{% block meta_robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <div class="mx-auto max-w-3xl">
+    {% include "account/_nav.html" %}
+
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1>{{ t("account.sessions") }}</h1>
+        <p class="mt-1 text-sm text-neutral-500">{{ t("account.sessions_hint") }}</p>
+      </div>
+      {% if sessions | length > 1 %}
+        <form method="post" action="/account/sessions/end-others">
+          <button type="submit" class="btn-outline btn-sm">
+            {{ t("account.sign_out_others") }}
+          </button>
+        </form>
+      {% endif %}
+    </div>
+
+    {% if flash == "ended" %}
+      <div class="mt-4 rounded-card border border-success-100 bg-success-50 p-3
+                  text-sm text-success-700" role="status">
+        {{ t("account.session_ended") }}
+      </div>
+    {% elif flash == "ended_all" %}
+      <div class="mt-4 rounded-card border border-success-100 bg-success-50 p-3
+                  text-sm text-success-700" role="status">
+        {{ t("account.other_sessions_ended") }}
+      </div>
+    {% endif %}
+
+    <div class="mt-6 space-y-3">
+      {% for session in sessions %}
+        {% set is_current = session.session_key == current_session_key %}
+        <article class="card flex flex-wrap items-center gap-4 p-4
+                        {{ 'border-primary-200 bg-primary-50/40' if is_current }}">
+          <span class="text-neutral-400">{{ icon.globe(class="h-6 w-6") }}</span>
+
+          <div class="min-w-0 flex-1">
+            <p class="flex flex-wrap items-center gap-2 text-sm font-medium text-navy-900">
+              {{ session.device_label or t("account.unknown_device") }}
+              {% if is_current %}
+                <span class="badge-success">{{ t("account.this_device") }}</span>
+              {% endif %}
+              {% if session.impersonator_user_id %}
+                {# §2.2.2: an impersonated session must never be mistaken for
+                   the customer's own. #}
+                <span class="badge-warning">{{ t("account.staff_session") }}</span>
+              {% endif %}
+            </p>
+            <p class="mt-0.5 text-xs text-neutral-500">
+              {% if session.ip_address %}
+                <span dir="ltr">{{ session.ip_address }}</span> &middot;
+              {% endif %}
+              {{ t("account.last_active") }}: {{ datetime(session.last_seen_dt) }}
+            </p>
+          </div>
+
+          {% if not is_current %}
+            <form method="post" action="/account/sessions/end">
+              <input type="hidden" name="session_key" value="{{ session.session_key }}">
+              <button type="submit" class="btn-outline btn-sm">
+                {{ t("account.sign_out_device") }}
+              </button>
+            </form>
+          {% endif %}
+        </article>
+      {% else %}
+        <div class="state-panel">
+          {{ icon.globe(class="h-10 w-10 text-neutral-300") }}
+          <p class="state-panel__title">{{ t("account.no_sessions") }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

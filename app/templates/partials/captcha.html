@@ -1,0 +1,23 @@
+{# CAPTCHA slot (Part I §2.4).
+
+   Rendered only when the challenge has actually been triggered — after
+   repeated failures — so legitimate users are not taxed on every request. The
+   provider is configured, not hardcoded, and `none` is a valid setting for
+   local development.
+#}
+
+{% if settings.captcha_provider == "turnstile" %}
+  <div class="cf-turnstile" data-sitekey="{{ settings.captcha_site_key }}"
+       data-theme="light" data-language="{{ lang }}"></div>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+
+{% elif settings.captcha_provider == "recaptcha" %}
+  <div class="g-recaptcha" data-sitekey="{{ settings.captcha_site_key }}"></div>
+  <script src="https://www.google.com/recaptcha/api.js?hl={{ lang }}" async defer></script>
+
+{% else %}
+  <p class="text-xs text-neutral-500">
+    {# Visible in development so the trigger point is obvious during testing. #}
+    CAPTCHA challenge would appear here (CAPTCHA_PROVIDER=none).
+  </p>
+{% endif %}

@@ -1,0 +1,147 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Branch-to-branch transfers (Part I §11). Stock leaves the origin on dispatch
+   and only arrives on receipt, so units in transit are never counted as
+   available at both ends. #}
+
+{% block title %}{{ t("inventory.transfers") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4" x-data="{ rows: [0], next: 1 }">
+
+  {% with title = t("inventory.transfers"), subtitle = t("inventory.transfers_purpose"),
+          back_href = "/admin/inventory", back_label = t("admin.inventory") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <form method="post" action="/admin/inventory/transfers/new">
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("inventory.new_transfer") }}</h2>
+        <button type="button" class="btn-outline btn-sm ms-auto" @click="rows.push(next++)">
+          {{ icon.plus(class="h-4 w-4") }} {{ t("inventory.add_line") }}
+        </button>
+      </div>
+
+      <div class="admin-panel__body grid gap-3 sm:grid-cols-3">
+        <div>
+          <label for="reference" class="field-label">{{ t("admin.reference") }}</label>
+          <input id="reference" name="reference" type="text" dir="ltr"
+                 value="{{ suggested_reference }}" class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="from_pool_id" class="field-label">{{ t("inventory.from") }}</label>
+          <select id="from_pool_id" name="from_pool_id" class="input h-9 min-h-0 py-0 text-sm">
+            {% for pool in pools %}
+              <option value="{{ pool.pk_stock_pool_id }}">{{ localized(pool) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="to_pool_id" class="field-label">{{ t("inventory.to") }}</label>
+          <select id="to_pool_id" name="to_pool_id" class="input h-9 min-h-0 py-0 text-sm">
+            {% for pool in pools %}
+              <option value="{{ pool.pk_stock_pool_id }}">{{ localized(pool) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.product") }}</th>
+              <th class="num">{{ t("product.quantity") }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="row in rows" :key="row">
+              <tr>
+                <td>
+                  <select name="variant_id" class="input h-9 min-h-0 w-full py-0 text-sm">
+                    <option value="">—</option>
+                    {% for variant, product in variants %}
+                      <option value="{{ variant.pk_product_variant_id }}">
+                        {{ localized(product) }} ({{ variant.sku }})
+                      </option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td class="num">
+                  <input name="quantity" type="number" min="0" value="0"
+                         class="input h-9 w-20 min-h-0 py-0 text-end text-sm">
+                </td>
+                <td>
+                  <button type="button" class="btn-ghost btn-sm px-2" x-show="rows.length > 1"
+                          @click="rows = rows.filter(r => r !== row)"
+                          aria-label="{{ t('cart.remove') }}">
+                    {{ icon.close(class="h-4 w-4") }}
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="admin-panel__body border-t border-neutral-200">
+        <button type="submit" class="btn-primary btn-sm">{{ t("inventory.dispatch") }}</button>
+      </div>
+    </section>
+  </form>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("inventory.transfers") }}</h2>
+    </div>
+    {% if transfers %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.reference") }}</th>
+              <th>{{ t("inventory.dispatched") }}</th>
+              <th>{{ t("admin.status") }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for transfer in transfers %}
+              <tr>
+                <td dir="ltr" class="font-medium">{{ transfer.reference }}</td>
+                <td class="text-xs text-neutral-500">
+                  {{ datetime(transfer.dispatched_dt) if transfer.dispatched_dt else "—" }}
+                </td>
+                <td>
+                  {% if transfer.received_dt %}
+                    <span class="badge-success">{{ t("inventory.received") }}</span>
+                  {% else %}
+                    <span class="badge-warning">{{ t("inventory.in_transit") }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {% if not transfer.received_dt %}
+                    <form method="post"
+                          action="/admin/inventory/transfers/{{ transfer.pk_stock_transfer_id }}/receive">
+                      <button type="submit" class="btn-outline btn-sm">
+                        {{ t("inventory.mark_received") }}
+                      </button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        <p class="text-sm text-neutral-500">{{ t("listing.no_results") }}</p>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

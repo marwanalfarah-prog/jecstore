@@ -1,0 +1,41 @@
+{# Page header: where am I, what is this screen for, how do I get back.
+
+   Every admin screen answers the same three questions, and before this partial
+   most of them answered none. A member of staff who lands on
+   /admin/inventory/stock-takes from a dashboard tile had no breadcrumb, no
+   sentence saying what a stock take *is*, and no route back up.
+
+   Usage — `subtitle` and `back_*` are optional:
+
+     {% with title = t("admin.orders"),
+             subtitle = t("admin.orders_purpose"),
+             back_href = "/admin", back_label = t("admin.dashboard") %}
+       {% include "admin/partials/page_header.html" %}
+     {% endwith %}
+
+   Actions stay in the page: an include cannot take a block, and every screen's
+   primary action is different. Put them in a `.admin-page-head__actions` div
+   right after this include.
+#}
+{% import "partials/icons.html" as icon %}
+
+<div class="admin-page-head">
+  {% if back_href %}
+    <a href="{{ back_href }}" class="admin-page-head__back">
+      {{ icon.chevron_back(class="h-4 w-4") }}
+      <span>{{ back_label }}</span>
+    </a>
+  {% endif %}
+
+  <div class="admin-page-head__row">
+    <div class="min-w-0">
+      <h2 class="admin-page-head__title" {% if title_ltr %}dir="ltr"{% endif %}>{{ title }}</h2>
+      {% if subtitle %}
+        {# One sentence on what this screen decides. §17.6 asks staff not to
+           relearn the UI module to module; it also helps not to guess it. #}
+        <p class="admin-page-head__subtitle">{{ subtitle }}</p>
+      {% endif %}
+    </div>
+    {% if header_actions %}{{ header_actions }}{% endif %}
+  </div>
+</div>

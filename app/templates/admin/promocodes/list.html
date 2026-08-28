@@ -1,0 +1,178 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.promocodes") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("admin.promocodes"), subtitle = t("promocodes.purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  {# §2.2 names promocode reporting explicitly, and this screen carried no
+     export at all — the code list and its redemption counts were readable
+     only here. #}
+  <div class="flex flex-wrap items-center justify-end gap-2">
+    {% with report = "promocodes", query = "" %}
+      {% include "admin/partials/export_buttons.html" %}
+    {% endwith %}
+  </div>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("promocodes.new_promocode") }}</h2>
+    </div>
+    <form method="post" class="admin-panel__body space-y-4">
+      <div class="grid gap-3 lg:grid-cols-4">
+        <div>
+          <label for="code" class="field-label">{{ t("promocodes.code") }}</label>
+          <input id="code" name="code" class="input" required dir="ltr">
+        </div>
+        <div>
+          <label for="promocode_kind" class="field-label">{{ t("promocodes.kind") }}</label>
+          <select id="promocode_kind" name="promocode_kind" class="input">
+            {% for kind in kinds %}
+              <option value="{{ kind.value }}">{{ t("promocodes.kind_" ~ kind.value) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="percentage" class="field-label">{{ t("catalog.percentage") }}</label>
+          <input id="percentage" name="percentage" class="input" inputmode="decimal" dir="ltr">
+        </div>
+        <div>
+          <label for="fixed_amount_amt" class="field-label">{{ t("promocodes.fixed_amount") }}</label>
+          <input id="fixed_amount_amt" name="fixed_amount_amt" class="input" inputmode="decimal" dir="ltr">
+        </div>
+        <div>
+          <label for="max_discount_amt" class="field-label">{{ t("promocodes.max_discount") }}</label>
+          <input id="max_discount_amt" name="max_discount_amt" class="input" inputmode="decimal" dir="ltr">
+        </div>
+        <div>
+          <label for="minimum_order_amt" class="field-label">{{ t("promocodes.minimum_order") }}</label>
+          <input id="minimum_order_amt" name="minimum_order_amt" class="input" inputmode="decimal" dir="ltr">
+        </div>
+        <div>
+          <label for="max_total_uses" class="field-label">{{ t("promocodes.max_total_uses") }}</label>
+          <input id="max_total_uses" name="max_total_uses" type="number" class="input" dir="ltr">
+        </div>
+        <div>
+          <label for="max_uses_per_customer" class="field-label">{{ t("promocodes.max_per_customer") }}</label>
+          <input id="max_uses_per_customer" name="max_uses_per_customer" type="number" class="input" dir="ltr">
+        </div>
+        <div>
+          <label for="name_ar" class="field-label">{{ t("catalog.name_ar") }}</label>
+          <input id="name_ar" name="name_ar" class="input">
+        </div>
+        <div>
+          <label for="name_en" class="field-label">{{ t("catalog.name_en") }}</label>
+          <input id="name_en" name="name_en" class="input" dir="ltr">
+        </div>
+        <div>
+          <label for="starts_dt" class="field-label">{{ t("promocodes.starts") }}</label>
+          <input id="starts_dt" name="starts_dt" type="datetime-local" class="input" dir="ltr">
+        </div>
+        <div>
+          <label for="expires_dt" class="field-label">{{ t("promocodes.expires") }}</label>
+          <input id="expires_dt" name="expires_dt" type="datetime-local" class="input" dir="ltr">
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-4">
+        <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+          <input type="checkbox" name="single_use_globally" value="1" class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+          <span>{{ t("promocodes.single_use") }}</span>
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+          <input type="checkbox" name="stacks_with_item_discount" value="1" class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+          <span>{{ t("promocodes.stacks") }}</span>
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+          <input type="checkbox" name="applies_to_consigned" value="1" class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+          <span>{{ t("promocodes.consignment") }}</span>
+        </label>
+      </div>
+
+      {% for idx in range(1, 4) %}
+        <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_10rem]">
+          <div>
+            <label for="restriction_{{ idx }}_target" class="field-label">{{ t("promocodes.restriction") }} {{ idx }}</label>
+            <select id="restriction_{{ idx }}_target" name="restriction_{{ idx }}_target" class="input">
+              <option value="">{{ t("promocodes.all_products") }}</option>
+              <optgroup label="{{ t('admin.categories') }}">
+                {% for category in categories %}
+                  <option value="category:{{ category.pk_category_id }}">{{ "-- " * category.depth }}{{ localized(category) }}</option>
+                {% endfor %}
+              </optgroup>
+              <optgroup label="{{ t('admin.products') }}">
+                {% for product in products %}
+                  <option value="product:{{ product.pk_product_id }}">{{ localized(product) }}</option>
+                {% endfor %}
+              </optgroup>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+              <input type="checkbox" name="restriction_{{ idx }}_exclusion" value="1" class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+              <span>{{ t("promocodes.exclude") }}</span>
+            </label>
+          </div>
+        </div>
+      {% endfor %}
+
+      <div>
+        <label for="note" class="field-label">{{ t("approvals.note") }}</label>
+        <textarea id="note" name="note" rows="2" class="input"></textarea>
+      </div>
+      <button type="submit" class="btn-primary btn-sm">{{ icon.plus(class="h-4 w-4") }} {{ t("promocodes.create") }}</button>
+    </form>
+  </section>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("admin.promocodes") }}</h2>
+    </div>
+    {% if promocodes %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("promocodes.code") }}</th>
+              <th>{{ t("promocodes.kind") }}</th>
+              <th>{{ t("promocodes.value") }}</th>
+              <th class="num">{{ t("promocodes.redemptions") }}</th>
+              <th>{{ t("promocodes.expires") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for promo in promocodes %}
+              <tr>
+                <td>
+                  <a href="/admin/promocodes/{{ promo.pk_promocode_id }}" class="font-medium text-secondary-700 hover:underline" dir="ltr">{{ promo.code }}</a>
+                  {% if localized(promo) %}
+                    <div class="text-xs text-neutral-500">{{ localized(promo) }}</div>
+                  {% endif %}
+                </td>
+                <td>{{ t("promocodes.kind_" ~ promo.promocode_kind) }}</td>
+                <td>
+                  {% if promo.promocode_kind == "fixed_amount" %}
+                    {{ money(promo.fixed_amount_amt) }}
+                  {% else %}
+                    {{ num(promo.percentage, 2) }}%
+                  {% endif %}
+                </td>
+                <td class="num">{{ num(counts.get(promo.pk_promocode_id, 0)) }}</td>
+                <td>{{ datetime(promo.expires_dt) if promo.expires_dt else "..." }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body text-sm text-neutral-500">{{ t("promocodes.no_promocodes") }}</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

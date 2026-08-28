@@ -1,0 +1,21 @@
+{# Persistent indicator that this session is impersonated (Part I §2.2.2).
+
+   Sticky and deliberately unlike anything else on the site. Names both parties,
+   because "who is acting" must never be a guess. Ending it returns the staff
+   member to their own session — not a full re-login.
+#}
+{% import "partials/icons.html" as icon %}
+
+<div class="impersonation-banner" role="alert">
+  {{ icon.shield(class="h-4 w-4 shrink-0") }}
+  <span>
+    {{ ctx.impersonator.username }} &rarr; {{ ctx.user.username }}
+  </span>
+  <form method="post" action="/account/impersonation/end" class="contents">
+    <button type="submit"
+            class="rounded bg-white/25 px-3 py-1 text-xs font-bold uppercase tracking-wide
+                   transition hover:bg-white/35">
+      {{ t("header.logout") }}
+    </button>
+  </form>
+</div>

@@ -1,0 +1,117 @@
+{# Dark navy footer, four blocks — same purpose as the old site, modernised
+   (Part I §3.2, §17.3). Includes the legacy-parity additions: an embedded
+   Facebook page feed rather than only a link out, and a Messenger deep link
+   alongside WhatsApp.
+#}
+{% import "partials/icons.html" as icon %}
+{% set s = ctx.site_settings | default({}, true) %}
+
+<footer class="mt-section bg-navy-900 text-neutral-300">
+  <div class="container-site grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
+
+    {# --- About --- #}
+    <div class="space-y-4">
+      {% with class = "h-12 w-auto" %}{% include "partials/logo.html" %}{% endwith %}
+      <h2 class="text-sm font-bold uppercase tracking-wide text-white">{{ t("footer.about_title") }}</h2>
+      <p class="text-sm leading-relaxed text-neutral-400">
+        {{ s.get("footer_about") or t("site.tagline") }}
+      </p>
+      <div class="flex gap-2">
+        {% if s.get("facebook_url") %}
+          <a href="{{ s['facebook_url'] }}" rel="noopener" target="_blank"
+             class="btn-icon h-10 w-10 text-neutral-300 hover:bg-white/10 hover:text-white"
+             aria-label="{{ t('footer.facebook') }}">{{ icon.facebook() }}</a>
+        {% endif %}
+        {% if s.get("instagram_url") %}
+          <a href="{{ s['instagram_url'] }}" rel="noopener" target="_blank"
+             class="btn-icon h-10 w-10 text-neutral-300 hover:bg-white/10 hover:text-white"
+             aria-label="{{ t('footer.instagram') }}">{{ icon.instagram() }}</a>
+        {% endif %}
+        {% if s.get("messenger_url") %}
+          <a href="{{ s['messenger_url'] }}" rel="noopener" target="_blank"
+             class="btn-icon h-10 w-10 text-neutral-300 hover:bg-white/10 hover:text-white"
+             aria-label="{{ t('footer.messenger') }}">{{ icon.messenger() }}</a>
+        {% endif %}
+        {% if s.get("whatsapp_number") %}
+          <a href="https://wa.me/{{ s['whatsapp_number'] }}" rel="noopener" target="_blank"
+             class="btn-icon h-10 w-10 text-neutral-300 hover:bg-white/10 hover:text-white"
+             aria-label="{{ t('footer.whatsapp') }}">{{ icon.whatsapp() }}</a>
+        {% endif %}
+      </div>
+    </div>
+
+    {# --- My account --- #}
+    <nav aria-labelledby="footer-account">
+      <h2 id="footer-account" class="mb-4 text-sm font-bold uppercase tracking-wide text-white">
+        {{ t("footer.account_title") }}
+      </h2>
+      <ul class="space-y-2.5 text-sm">
+        <li><a href="/account" class="hover:text-white hover:underline">{{ t("header.my_account") }}</a></li>
+        <li><a href="/account/orders" class="hover:text-white hover:underline">{{ t("header.orders") }}</a></li>
+        <li><a href="/account/wishlist" class="hover:text-white hover:underline">{{ t("header.wishlist") }}</a></li>
+        <li><a href="/compare" class="hover:text-white hover:underline">{{ t("header.compare") }}</a></li>
+        <li><a href="/account/newsletter" class="hover:text-white hover:underline">{{ t("footer.newsletter_title") }}</a></li>
+      </ul>
+    </nav>
+
+    {# --- Customer service --- #}
+    <nav aria-labelledby="footer-service">
+      <h2 id="footer-service" class="mb-4 text-sm font-bold uppercase tracking-wide text-white">
+        {{ t("footer.service_title") }}
+      </h2>
+      <ul class="space-y-2.5 text-sm">
+        <li><a href="/branches" class="hover:text-white hover:underline">{{ t("branch.title") }}</a></li>
+        <li><a href="/orders/track" class="hover:text-white hover:underline">{{ t("header.track_order") }}</a></li>
+        {% if s.get("contact_phone") %}
+          <li>
+            <a href="tel:{{ s['contact_phone'] }}" class="inline-flex items-center gap-2 hover:text-white">
+              {{ icon.phone(class="h-4 w-4 shrink-0") }}
+              <span dir="ltr" class="tabular">{{ s["contact_phone"] }}</span>
+            </a>
+          </li>
+        {% endif %}
+        {% if s.get("contact_email") %}
+          <li>
+            <a href="mailto:{{ s['contact_email'] }}" class="inline-flex items-center gap-2 hover:text-white">
+              {{ icon.mail(class="h-4 w-4 shrink-0") }}
+              <span dir="ltr">{{ s["contact_email"] }}</span>
+            </a>
+          </li>
+        {% endif %}
+      </ul>
+    </nav>
+
+    {# --- Newsletter + Facebook feed --- #}
+    <div class="space-y-6">
+      <div>
+        <h2 class="mb-2 text-sm font-bold uppercase tracking-wide text-white">
+          {{ t("footer.newsletter_title") }}
+        </h2>
+        <p class="mb-3 text-sm text-neutral-400">{{ t("footer.newsletter_hint") }}</p>
+        {% include "partials/newsletter_form.html" %}
+      </div>
+
+      {# Live embedded page feed, not just a link (Part I §3.2). Loaded lazily
+         so a third-party iframe never blocks first paint on mobile. #}
+      {% if s.get("facebook_page_url") %}
+        <div class="overflow-hidden rounded-card bg-white/5">
+          <iframe
+            src="https://www.facebook.com/plugins/page.php?href={{ s['facebook_page_url'] | urlencode }}&tabs=timeline&width=320&height=200&small_header=true&adapt_container_width=true&hide_cover=false&show_facepile=false&locale={{ 'ar_AR' if lang == 'ar' else 'en_US' }}"
+            width="320" height="200" style="border:none;overflow:hidden"
+            scrolling="no" frameborder="0" loading="lazy"
+            allow="clipboard-write; encrypted-media; picture-in-picture; web-share"
+            title="{{ t('footer.facebook') }}"
+            class="w-full"></iframe>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="border-t border-white/10">
+    <div class="container-site flex flex-col items-center justify-between gap-2 py-5
+                text-xs text-neutral-400 sm:flex-row">
+      <p>&copy; {{ num(now.year) }} {{ t("site.name") }} — {{ t("footer.rights") }}</p>
+      <p>{{ t("site.tagline") }}</p>
+    </div>
+  </div>
+</footer>

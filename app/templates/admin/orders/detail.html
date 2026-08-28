@@ -1,0 +1,446 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = order.order_number, title_ltr = true,
+          subtitle = t("admin.order_detail_purpose"),
+          back_href = "/admin/orders", back_label = t("admin.orders") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  {# --- Header --------------------------------------------------------- #}
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title" dir="ltr">{{ order.order_number }}</h2>
+      {% set tone = {"placed":"badge-neutral","in_preparation":"badge-warning",
+                     "partially_fulfilled":"badge-warning","complete":"badge-success",
+                     "cancelled":"badge-danger"} %}
+      <span class="{{ tone.get(order.status, 'badge-neutral') }}">
+        {{ t("orders.status_" ~ order.status) }}
+      </span>
+      {% set ptone = {"paid":"badge-success","partially_paid":"badge-warning",
+                      "not_paid":"badge-neutral","refunded":"badge-danger"} %}
+      <span class="{{ ptone.get(order.payment_status, 'badge-neutral') }}">
+        {{ t("orders.payment_" ~ order.payment_status) }}
+      </span>
+    </div>
+    <div class="admin-panel__body">
+      <dl class="admin-dl lg:grid-cols-4">
+        <div>
+          <dt>{{ t("admin.customer") }}</dt>
+          <dd>
+            {% if customer %}
+              {{ customer.username }}
+              {# The one thing staff reach for when an order needs a phone
+                 call, and it was not on the page. #}
+              <a href="mailto:{{ customer.email }}"
+                 class="block text-xs font-normal link" dir="ltr">{{ customer.email }}</a>
+            {% else %}
+              <span class="text-neutral-400">{{ t("admin.guest") }}</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>{{ t("admin.placed") }}</dt>
+          <dd>{{ datetime(order.placed_dt) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("checkout.fulfillment") }}</dt>
+          <dd>{{ t("checkout.pickup") if order.fulfillment_method == "pickup" else t("checkout.shipping") }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("admin.prepared_by") }}</dt>
+          <dd>{{ prepared_by.username if prepared_by else "—" }}</dd>
+        </div>
+        {% if order.ship_address_line %}
+          <div class="sm:col-span-2 lg:col-span-4">
+            <dt>{{ t("checkout.shipping_address") }}</dt>
+            <dd>{{ order.ship_address_line }}, {{ order.ship_city }}
+              {%- if order.ship_province_name %}, {{ order.ship_province_name }}{% endif %}</dd>
+          </div>
+        {% endif %}
+        {% if order.customer_note %}
+          <div class="sm:col-span-2 lg:col-span-4">
+            <dt>{{ t("checkout.note") }}</dt>
+            <dd class="font-normal text-neutral-600">{{ order.customer_note }}</dd>
+          </div>
+        {% endif %}
+      </dl>
+
+      {# The order's own progress, so the two buttons below read as "the next
+         step" rather than as two equal choices. Handing over goods that were
+         never prepared is the mistake this is here to make visible. #}
+      {% set stage = {"placed": 1, "in_preparation": 2, "partially_fulfilled": 2,
+                      "complete": 3, "cancelled": 0} %}
+      {% set at = stage.get(order.status, 0) %}
+      {% if order.status != "cancelled" %}
+        <ol class="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-4
+                   text-xs font-medium">
+          {% for step in [(1, "orders.status_placed"), (2, "admin.mark_prepared"),
+                          (3, "admin.mark_delivered")] %}
+            <li class="flex items-center gap-2">
+              <span class="flex h-5 w-5 items-center justify-center rounded-full text-2xs
+                           {% if at >= step[0] %}bg-success-600 text-white
+                           {% else %}bg-neutral-200 text-neutral-500{% endif %}">
+                {% if at >= step[0] %}&check;{% else %}{{ num(step[0]) }}{% endif %}
+              </span>
+              <span class="{% if at >= step[0] %}text-navy-900{% else %}text-neutral-400{% endif %}">
+                {{ t(step[1]) }}
+              </span>
+              {% if step[0] < 3 %}
+                {{ icon.chevron_forward(class="h-3 w-3 text-neutral-300") }}
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+      {% endif %}
+
+      <div class="mt-4 flex flex-wrap gap-2 border-t border-neutral-200 pt-4">
+        {% if order.status not in ["cancelled", "complete"] %}
+          <form method="post" action="/admin/orders/{{ order.pk_order_id }}/prepare">
+            <button type="submit" class="btn-secondary btn-sm">{{ t("admin.mark_prepared") }}</button>
+          </form>
+          {# Handing over is what releases the stock and closes the order, and
+             it cannot be undone from this screen — only a return reverses it. #}
+          <form method="post" action="/admin/orders/{{ order.pk_order_id }}/deliver"
+                data-confirm="{{ t('admin.confirm_deliver') }}">
+            <button type="submit" class="btn-primary btn-sm">{{ t("admin.mark_delivered") }}</button>
+          </form>
+        {% endif %}
+
+        {% if can_raise_return and order.status not in ["cancelled"] %}
+          {# §12 lets staff raise a return at the counter. The screen for it
+             existed but nothing linked to it, so the only way in was to type
+             the URL with an order id by hand. #}
+          <a href="/admin/returns/new?order_id={{ order.pk_order_id }}"
+             class="btn-outline btn-sm">{{ t("returns.new") }}</a>
+        {% endif %}
+
+        {# Invoice actions stay available whatever the status — a completed or
+           cancelled order is exactly when its invoice or credit note is
+           wanted (Part I §9). #}
+        <a href="/admin/orders/{{ order.pk_order_id }}/invoice.html" target="_blank"
+           rel="noopener" class="btn-outline btn-sm">{{ t("invoice.view") }}</a>
+        {% if pdf_available %}
+          <a href="/admin/orders/{{ order.pk_order_id }}/invoice.pdf" target="_blank"
+             rel="noopener" class="btn-outline btn-sm">{{ t("exports.pdf") }}</a>
+        {% endif %}
+        <form method="post" action="/admin/orders/{{ order.pk_order_id }}/invoice/email"
+              data-confirm="{{ t('invoice.confirm_email', email=customer.email if customer else '') }}">
+          <button type="submit" class="btn-ghost btn-sm">{{ t("invoice.email_invoice") }}</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+    <div class="space-y-4">
+
+      {# --- Lines ------------------------------------------------------ #}
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("orders.items") }}</h2>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>{{ t("admin.product") }}</th>
+                <th class="num">{{ t("product.quantity") }}</th>
+                <th class="num">{{ t("admin.unit_price") }}</th>
+                <th class="num">{{ t("cart.total") }}</th>
+                <th>{{ t("admin.status") }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for line in lines %}
+                <tr>
+                  <td>
+                    <span class="font-medium text-navy-900">
+                      {{ line.product_name_ar if lang == "ar" else line.product_name_en }}
+                    </span>
+                    {% set label = line.variant_label_ar if lang == "ar" else line.variant_label_en %}
+                    {% if label %}<span class="block text-xs text-neutral-500">{{ label }}</span>{% endif %}
+                    <span class="block text-2xs text-neutral-400" dir="ltr">{{ line.sku }}</span>
+                  </td>
+                  <td class="num">
+                    <form method="post"
+                          action="/admin/orders/{{ order.pk_order_id }}/lines/{{ line.pk_order_line_id }}/quantity"
+                          class="flex items-center justify-end gap-1">
+                      <input type="number" name="quantity" min="0" value="{{ line.quantity }}"
+                             class="input h-8 w-16 min-h-0 py-0 text-end text-sm">
+                      <button type="submit" class="btn-ghost btn-sm px-2"
+                              title="{{ t('cart.update') }}"
+                              aria-label="{{ t('cart.update') }}">{{ icon.check(class="h-4 w-4") }}</button>
+                    </form>
+                  </td>
+                  <td class="num">
+                    {{ money(line.unit_price_amt) }}
+                    {% if line.unit_price_amt != line.list_price_amt %}
+                      <span class="block text-2xs text-neutral-400 line-through">
+                        {{ money(line.list_price_amt) }}
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td class="num font-medium">{{ money(line.line_total_amt) }}</td>
+                  <td>
+                    <form method="post"
+                          action="/admin/orders/{{ order.pk_order_id }}/lines/{{ line.pk_order_line_id }}/status">
+                      <select name="new_status" class="input h-8 min-h-0 w-full py-0 text-xs"
+                              data-autosubmit
+                              aria-label="{{ t('admin.line_status') }}">
+                        {% for value in line_statuses %}
+                          <option value="{{ value }}" {% if line.fulfillment_status == value %}selected{% endif %}>
+                            {{ t("orders.line_" ~ value) }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                    </form>
+                    {% if line.stock_held_flag %}
+                      <span class="mt-1 inline-block badge-warning">{{ t("admin.stock_held") }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {# --- Payments (Part I §9: split across channels) ---------------- #}
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("admin.payments") }}</h2>
+          <span class="ms-auto text-xs text-neutral-500">
+            {{ t("admin.outstanding") }}: <strong class="tabular">{{ money(outstanding_amt) }}</strong>
+          </span>
+        </div>
+
+        {% if payments %}
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>{{ t("admin.channel") }}</th>
+                  <th>{{ t("admin.reference") }}</th>
+                  <th>{{ t("admin.recorded") }}</th>
+                  <th class="num">{{ t("admin.amount") }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for payment, channel in payments %}
+                  <tr>
+                    <td>{{ localized(channel) if channel else "—" }}</td>
+                    <td class="text-xs text-neutral-500" dir="ltr">{{ payment.reference or "—" }}</td>
+                    <td class="text-xs text-neutral-500">{{ datetime(payment.created_dt) }}</td>
+                    <td class="num {% if payment.amount_amt < 0 %}text-danger-600{% endif %}">
+                      {{ money(payment.amount_amt) }}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+
+        {% if order.status != "cancelled" and outstanding_amt > 0 %}
+          <div class="admin-panel__body border-t border-neutral-200">
+            <form method="post" action="/admin/orders/{{ order.pk_order_id }}/payment"
+                  class="flex flex-wrap items-end gap-3">
+              <div>
+                <label for="channel_id" class="field-label">{{ t("admin.channel") }}</label>
+                <select id="channel_id" name="channel_id" class="input h-9 min-h-0 w-36 py-0 text-sm">
+                  {% for channel in channels %}
+                    <option value="{{ channel.pk_payment_channel_id }}">{{ localized(channel) }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label for="money_box_id" class="field-label">{{ t("admin.money_box") }}</label>
+                <select id="money_box_id" name="money_box_id" class="input h-9 min-h-0 w-36 py-0 text-sm">
+                  {% for box in boxes %}
+                    <option value="{{ box.pk_money_box_id }}">{{ localized(box) }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label for="amount_amt" class="field-label">{{ t("admin.amount") }}</label>
+                <input id="amount_amt" name="amount_amt" type="text" inputmode="decimal"
+                       value="{{ outstanding_amt }}" dir="ltr"
+                       class="input h-9 w-28 min-h-0 py-0 text-sm">
+              </div>
+              <div>
+                <label for="reference" class="field-label">{{ t("admin.reference") }}</label>
+                <input id="reference" name="reference" type="text"
+                       class="input h-9 w-32 min-h-0 py-0 text-sm">
+              </div>
+              <button type="submit" class="btn-primary btn-sm">{{ t("admin.record_payment") }}</button>
+            </form>
+          </div>
+        {% endif %}
+      </section>
+
+      {# --- Internal notes (staff only, Part I §9) --------------------- #}
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("admin.internal_notes") }}</h2>
+          <span class="badge-neutral ms-auto">{{ t("admin.staff_only") }}</span>
+        </div>
+        <div class="admin-panel__body space-y-3">
+          {% if order.internal_note %}
+            <pre class="whitespace-pre-wrap rounded-control bg-neutral-50 p-3 text-xs text-neutral-700">{{ order.internal_note }}</pre>
+          {% endif %}
+          <form method="post" action="/admin/orders/{{ order.pk_order_id }}/note"
+                class="flex gap-2">
+            <input name="note" type="text" class="input h-9 min-h-0 flex-1 py-0 text-sm"
+                   placeholder="{{ t('admin.add_note') }}" required>
+            <button type="submit" class="btn-outline btn-sm">{{ t("common.save") }}</button>
+          </form>
+        </div>
+      </section>
+    </div>
+
+    {# --- Money sidebar ------------------------------------------------ #}
+    <aside class="space-y-4">
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("checkout.summary") }}</h2>
+        </div>
+        <div class="admin-panel__body">
+          <dl class="space-y-2 text-sm">
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-600">{{ t("cart.subtotal") }}</dt>
+              <dd class="tabular">{{ money(order.subtotal_amt) }}</dd>
+            </div>
+            {% if order.item_discount_amt %}
+              <div class="flex justify-between gap-3">
+                <dt class="text-neutral-600">{{ t("admin.item_discounts") }}</dt>
+                <dd class="tabular text-success-600">&minus;{{ money(order.item_discount_amt) }}</dd>
+              </div>
+            {% endif %}
+            {% if order.invoice_discount_amt %}
+              <div class="flex justify-between gap-3">
+                <dt class="text-neutral-600">{{ t("admin.invoice_discount") }}</dt>
+                <dd class="tabular text-success-600">&minus;{{ money(order.invoice_discount_amt) }}</dd>
+              </div>
+            {% endif %}
+            {% if order.promocode_discount_amt %}
+              <div class="flex justify-between gap-3">
+                <dt class="text-neutral-600">{{ t("cart.promocode") }}</dt>
+                <dd class="tabular text-success-600">&minus;{{ money(order.promocode_discount_amt) }}</dd>
+              </div>
+            {% endif %}
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-600">{{ t("cart.shipping") }}</dt>
+              <dd class="tabular">{{ money(order.shipping_amt) }}</dd>
+            </div>
+            <div class="flex justify-between gap-3 border-t border-neutral-200 pt-2">
+              <dt class="font-semibold text-navy-900">{{ t("cart.total") }}</dt>
+              <dd class="price">{{ money(order.total_amt) }}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-600">{{ t("admin.paid") }}</dt>
+              <dd class="tabular">{{ money(paid_amt) }}</dd>
+            </div>
+          </dl>
+
+          {# Currency is always labelled on an invoice (Part I §1.1). #}
+          <p class="mt-3 text-2xs text-neutral-400">
+            {{ t("admin.rate_at_sale") }}: {{ order.usd_rate_at_sale }}
+          </p>
+        </div>
+      </section>
+
+      {% if order.status not in ["cancelled", "complete"] %}
+        <section class="admin-panel">
+          <div class="admin-panel__head">
+            <h2 class="admin-panel__title">{{ t("admin.adjustments") }}</h2>
+          </div>
+          <div class="admin-panel__body space-y-4">
+
+            <form method="post" action="/admin/orders/{{ order.pk_order_id }}/invoice-discount"
+                  class="space-y-2">
+              <label class="field-label">{{ t("admin.invoice_discount") }}</label>
+              <div class="flex gap-2">
+                <input name="percentage" type="text" inputmode="decimal" dir="ltr"
+                       placeholder="%" class="input h-9 min-h-0 w-20 py-0 text-sm">
+                <input name="amount_amt" type="text" inputmode="decimal" dir="ltr"
+                       placeholder="{{ t('currency.jod') }}" class="input h-9 min-h-0 w-24 py-0 text-sm">
+                <button type="submit" class="btn-outline btn-sm">{{ t("cart.apply") }}</button>
+              </div>
+            </form>
+
+            <form method="post" action="/admin/orders/{{ order.pk_order_id }}/shipping"
+                  class="space-y-2">
+              <label for="ship" class="field-label">{{ t("cart.shipping") }}</label>
+              <div class="flex gap-2">
+                <input id="ship" name="amount_amt" type="text" inputmode="decimal" dir="ltr"
+                       value="{{ order.shipping_amt }}" class="input h-9 min-h-0 flex-1 py-0 text-sm">
+                <button type="submit" class="btn-outline btn-sm">{{ t("common.save") }}</button>
+              </div>
+              {% if order.shipping_quote_pending_flag %}
+                <p class="text-xs text-warning-700">{{ t("cart.shipping_on_contact") }}</p>
+              {% endif %}
+            </form>
+          </div>
+        </section>
+
+        {# --- Cancel: prompts for where the refund goes (Part I §8) ----- #}
+        <section class="admin-panel border-danger-100"
+                 x-data="{ open: false, destination: '{{ 'money_box' if paid_amt > 0 else '' }}' }">
+          <div class="admin-panel__body">
+            <button type="button" class="btn-outline btn-sm w-full text-danger-600"
+                    @click="open = !open">
+              {{ t("admin.cancel_order") }}
+            </button>
+
+            <form x-show="open" x-cloak method="post"
+                  action="/admin/orders/{{ order.pk_order_id }}/cancel"
+                  data-confirm="{{ t('admin.confirm_cancel_order', number=order.order_number) }}"
+                  class="mt-3 space-y-3">
+              <div>
+                <label for="reason" class="field-label">{{ t("admin.cancel_reason") }}</label>
+                <input id="reason" name="reason" type="text"
+                       class="input h-9 min-h-0 py-0 text-sm">
+              </div>
+
+              {% if paid_amt > 0 %}
+                <div>
+                  <label class="field-label">{{ t("admin.refund_destination") }}</label>
+                  <p class="mb-2 text-xs text-neutral-500">
+                    {{ t("admin.refund_prompt", amount=money(paid_amt)) }}
+                  </p>
+                  <select name="refund_destination" x-model="destination"
+                          class="input h-9 min-h-0 py-0 text-sm">
+                    <option value="money_box">{{ t("admin.refund_money_box") }}</option>
+                    <option value="store_credit">{{ t("admin.refund_store_credit") }}</option>
+                  </select>
+                </div>
+                <div x-show="destination === 'money_box'">
+                  <label for="refund_box" class="field-label">{{ t("admin.money_box") }}</label>
+                  <select id="refund_box" name="refund_money_box_id"
+                          class="input h-9 min-h-0 py-0 text-sm">
+                    {% for box in boxes %}
+                      <option value="{{ box.pk_money_box_id }}">{{ localized(box) }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              {% endif %}
+
+              <button type="submit" class="btn-danger btn-sm w-full">
+                {{ t("admin.confirm_cancel") }}
+              </button>
+            </form>
+          </div>
+        </section>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+{% endblock %}

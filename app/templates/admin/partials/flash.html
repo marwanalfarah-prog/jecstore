@@ -1,0 +1,68 @@
+{# The one flash banner every admin screen uses (Part I §17.6, Part II §5).
+
+   This markup used to be pasted into twenty templates. That is how "saved"
+   ended up phrased one way on Products and another on Money Boxes, how three
+   screens forgot the Maker-Checker case entirely, and how no screen could
+   report a *failure* at all. One include now decides tone, icon and wording
+   for every outcome, so a member of staff learns the language once:
+
+     pending          the action was parked for a checker — saying "saved"
+                      here would be a lie the maker acts on (§2.2.1)
+     saved / created  it happened, and the row is on the page below
+     closed           the row was closed, not deleted (Part II §1)
+     error            it did not happen; `flash_error` carries the reason
+
+   Screens pass nothing — `flash` is already in the admin context. An unknown
+   code renders nothing rather than an empty box.
+#}
+{% import "partials/icons.html" as icon %}
+
+{# Tailwind emits only the class names it can find as whole strings, and that
+   applies to `@layer components` classes too. `admin-flash--{{ tone }}` was
+   never emitted at all, so the banner rendered with no colour and no border —
+   visible to nobody in review, because the markup was perfectly correct. The
+   modifier is written out in full here for that reason. #}
+{% set _tones = {
+  "pending":       "warning",
+  "saved":         "success",
+  "created":       "success",
+  "closed":        "success",
+  "sent":          "success",
+  "variant_added": "success",
+  "variant_saved": "success",
+  "error":         "danger",
+} %}
+{% set tone = _tones.get(flash) %}
+
+{% if tone %}
+  <div role="status" x-data="{ shown: true }" x-show="shown" x-cloak
+       class="admin-flash
+              {%- if tone == 'warning' %} admin-flash--warning
+              {%- elif tone == 'danger' %} admin-flash--danger
+              {%- elif tone == 'info' %} admin-flash--info
+              {%- else %} admin-flash--success{% endif %}">
+    <span class="admin-flash__icon">
+      {%- if tone == "warning" %}{{ icon.shield(class="h-4 w-4") }}
+      {%- elif tone == "danger" %}{{ icon.alert(class="h-4 w-4") }}
+      {%- else %}{{ icon.check_circle(class="h-4 w-4") }}{% endif -%}
+    </span>
+
+    <p class="admin-flash__text">
+      {%- if flash == "pending" -%}
+        {{ t("admin.sent_for_approval") }}
+        <a href="/admin/approvals" class="font-semibold underline">{{ t("admin.approvals") }}</a>
+      {%- elif flash == "variant_added" -%}{{ t("catalog.variant_added") }}
+      {%- elif flash == "variant_saved" -%}{{ t("catalog.variant_saved") }}
+      {%- elif flash == "created" -%}{{ t("admin.created") }}
+      {%- elif flash == "closed" -%}{{ t("admin.closed") }}
+      {%- elif flash == "sent" -%}{{ t("admin.sent") }}
+      {%- elif flash == "error" -%}{{ flash_error or t("state.error_title") }}
+      {%- else -%}{{ t("admin.saved") }}{% endif -%}
+    </p>
+
+    <button type="button" class="admin-flash__close" @click="shown = false"
+            aria-label="{{ t('common.dismiss') }}">
+      {{ icon.close(class="h-4 w-4") }}
+    </button>
+  </div>
+{% endif %}

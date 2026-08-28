@@ -1,0 +1,151 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Per-item dashboard: every in/out movement, plus the invoice history that
+   links this item to each shipment it arrived on (Part I §11). #}
+
+{% block title %}{{ localized(product) }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = localized(product), subtitle = t("inventory.item_purpose"),
+          back_href = "/admin/inventory", back_label = t("admin.inventory") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ localized(product) }}</h2>
+      <span class="text-xs text-neutral-500" dir="ltr">{{ variant.sku }}</span>
+      <a href="/admin/inventory/labels?variants={{ variant.pk_product_variant_id }}&copies=1"
+         target="_blank" rel="noopener" class="btn-outline btn-sm ms-auto">
+        {{ t("inventory.print_label") }}
+      </a>
+    </div>
+    <div class="admin-panel__body">
+      <dl class="admin-dl lg:grid-cols-4">
+        <div>
+          <dt>{{ t("inventory.barcode") }}</dt>
+          <dd dir="ltr">{{ variant.barcode or "—" }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("inventory.min") }}</dt>
+          <dd>{{ num(variant.min_stock_level or product.min_stock_level or 0) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("inventory.optimal") }}</dt>
+          <dd>{{ num(variant.optimal_stock_level or product.optimal_stock_level or 0) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("inventory.max") }}</dt>
+          <dd>{{ num(variant.max_stock_level or product.max_stock_level or 0) }}</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("inventory.movements") }}</h2>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.recorded") }}</th>
+              <th>{{ t("inventory.movement_kind") }}</th>
+              <th class="num">{{ t("inventory.delta") }}</th>
+              <th class="num">{{ t("inventory.unit_cost") }}</th>
+              <th>{{ t("admin.reference") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in movements %}
+              <tr>
+                <td class="whitespace-nowrap text-xs text-neutral-500">{{ datetime(m.created_dt) }}</td>
+                <td><span class="badge-neutral">{{ t("inventory.kind_" ~ m.movement_kind) }}</span></td>
+                <td class="num {% if m.quantity_delta < 0 %}text-danger-600{% else %}text-success-600{% endif %}">
+                  {% if m.quantity_delta > 0 %}+{% endif %}{{ num(m.quantity_delta) }}
+                </td>
+                <td class="num">{{ money(m.unit_cost_amt) if m.unit_cost_amt else "—" }}</td>
+                <td class="text-xs text-neutral-500">{{ m.note or "—" }}</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="5" class="py-6 text-center text-neutral-500">
+                  {{ t("listing.no_results") }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="space-y-4">
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("inventory.write_off") }}</h2>
+        </div>
+        <form method="post"
+              action="/admin/inventory/item/{{ variant.pk_product_variant_id }}/write-off"
+              class="admin-panel__body space-y-3" data-confirm="{{ t('inventory.confirm_write_off') }}">
+          <div>
+            <label for="stock_pool_id" class="field-label">{{ t("inventory.pool") }}</label>
+            <select id="stock_pool_id" name="stock_pool_id" class="input h-9 min-h-0 py-0 text-sm">
+              {% for pool in pools %}
+                <option value="{{ pool.pk_stock_pool_id }}">{{ localized(pool) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label for="quantity" class="field-label">{{ t("product.quantity") }}</label>
+            <input id="quantity" name="quantity" type="number" min="1" value="1"
+                   class="input h-9 min-h-0 py-0 text-sm">
+          </div>
+          <div>
+            <label for="reason" class="field-label">{{ t("returns.reason") }}</label>
+            <select id="reason" name="reason" class="input h-9 min-h-0 py-0 text-sm">
+              {% for reason in reasons %}
+                <option value="{{ reason }}">{{ t("inventory.reason_" ~ reason) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label for="note" class="field-label">{{ t("admin.add_note") }}</label>
+            <input id="note" name="note" type="text" class="input h-9 min-h-0 py-0 text-sm">
+          </div>
+          <button type="submit" class="btn-danger btn-sm w-full">{{ t("inventory.write_off") }}</button>
+        </form>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("inventory.invoice_history") }}</h2>
+        </div>
+        <div class="admin-panel__body">
+          <ul class="space-y-2 text-sm">
+            {% for line in shipment_lines %}
+              {% set s = shipments.get(line.fk_shipment_id) %}
+              <li class="flex justify-between gap-2">
+                <a href="/admin/inventory/shipments/{{ line.fk_shipment_id }}"
+                   class="link text-xs" dir="ltr">{{ s.reference if s else "—" }}</a>
+                <span class="tabular text-xs">
+                  {{ num(line.quantity) }} &times; {{ money(line.unit_cost_jod_amt) }}
+                </span>
+              </li>
+            {% else %}
+              <li class="text-neutral-500">{{ t("listing.no_results") }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}

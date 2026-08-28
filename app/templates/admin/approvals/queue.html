@@ -1,0 +1,95 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.approvals") }}{% endblock %}
+
+{% macro request_rows(items, show_maker=true) %}
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>{{ t("approvals.action") }}</th>
+          <th>{{ t("approvals.summary") }}</th>
+          {% if show_maker %}<th>{{ t("approvals.maker") }}</th>{% endif %}
+          <th>{{ t("approvals.requested") }}</th>
+          <th>{{ t("admin.status") }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+          {% set row = item.row %}
+          <tr>
+            <td class="whitespace-nowrap font-medium text-navy-900">
+              {{ localized(item.permission) }}
+            </td>
+            <td class="max-w-md">
+              {{ (row.summary_ar if lang == "ar" else row.summary_en) or "—" }}
+            </td>
+            {% if show_maker %}
+              <td class="whitespace-nowrap">{{ item.maker.username if item.maker else "—" }}</td>
+            {% endif %}
+            <td class="whitespace-nowrap text-xs text-neutral-500">{{ datetime(row.requested_dt) }}</td>
+            <td>
+              {% set tone = {"pending": "badge-warning", "approved": "badge-success",
+                             "rejected": "badge-danger", "cancelled": "badge-neutral"} %}
+              <span class="{{ tone.get(row.status, 'badge-neutral') }}">
+                {{ t("approvals.status_" ~ row.status) }}
+              </span>
+              {% if row.execution_error %}
+                <span class="badge-danger" title="{{ row.execution_error }}">
+                  {{ t("approvals.execution_failed") }}
+                </span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <a href="/admin/approvals/{{ row.pk_approval_request_id }}"
+                 class="btn-outline btn-sm">{{ t("approvals.review") }}</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endmacro %}
+
+{% block content %}
+<div class="space-y-5">
+
+  {% with title = t("admin.approvals"), subtitle = t("approvals.purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("approvals.awaiting_you") }}</h2>
+      {% if pending %}
+        <span class="badge-warning">{{ num(pending | length) }}</span>
+      {% endif %}
+    </div>
+    {% if pending %}
+      {{ request_rows(pending) }}
+    {% else %}
+      <div class="admin-panel__body">
+        <div class="flex items-center gap-3 text-sm text-neutral-500">
+          {{ icon.check_circle(class="h-5 w-5 text-success-600") }}
+          <p>{{ t("approvals.none_pending") }}</p>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("approvals.your_requests") }}</h2>
+    </div>
+    {% if mine %}
+      {{ request_rows(mine, show_maker=false) }}
+    {% else %}
+      <div class="admin-panel__body">
+        <p class="text-sm text-neutral-500">{{ t("approvals.none_submitted") }}</p>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

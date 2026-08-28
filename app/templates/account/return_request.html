@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Customer-initiated return (Part I §12).
+
+   Partial returns are the ordinary case, so this asks per line rather than
+   offering an all-or-nothing button.
+#}
+
+{% block title %}{{ t("returns.new") }} — {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <div class="mx-auto max-w-2xl space-y-4">
+
+    <a href="/account/orders" class="inline-flex items-center gap-1.5 text-sm link">
+      {{ icon.chevron_back(class="h-4 w-4") }} {{ t("header.orders") }}
+    </a>
+
+    <div>
+      <h1>{{ t("returns.new") }}</h1>
+      <p class="mt-1 text-sm text-neutral-500" dir="ltr">{{ order.order_number }}</p>
+    </div>
+
+    {% if error %}
+      <div class="flex items-start gap-2 rounded-card border border-danger-100 bg-danger-50 p-3
+                  text-sm text-danger-700" role="alert">
+        {{ icon.alert(class="h-4 w-4 shrink-0") }}
+        <p>{{ t("returns.error_" ~ error) }}</p>
+      </div>
+    {% endif %}
+
+    {% if returnable %}
+      <form method="post" action="/account/returns/new/{{ order.order_number }}"
+            class="space-y-4">
+
+        <section class="card">
+          <div class="border-b border-neutral-200 px-5 py-3">
+            <h2 class="text-sm font-semibold text-navy-900">{{ t("returns.select_items") }}</h2>
+          </div>
+          <div class="divide-y divide-neutral-100">
+            {% for line, remaining in returnable %}
+              <div class="flex flex-wrap items-center gap-3 px-5 py-3">
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-navy-900">
+                    {{ line.product_name_ar if lang == "ar" else line.product_name_en }}
+                  </p>
+                  {% set label = line.variant_label_ar if lang == "ar" else line.variant_label_en %}
+                  {% if label %}
+                    <p class="text-xs text-neutral-500">{{ label }}</p>
+                  {% endif %}
+                  <p class="text-xs text-neutral-500">
+                    {{ t("returns.returnable") }}: <span class="tabular">{{ num(remaining) }}</span>
+                  </p>
+                </div>
+                <div>
+                  <label for="qty-{{ line.pk_order_line_id }}" class="sr-only">
+                    {{ t("returns.return_qty") }}
+                  </label>
+                  <input id="qty-{{ line.pk_order_line_id }}"
+                         type="number" name="qty_{{ line.pk_order_line_id }}"
+                         min="0" max="{{ remaining }}" value="0"
+                         class="input h-10 w-20 min-h-0 py-0 text-center">
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="card p-5 space-y-4">
+          <div>
+            <label for="reason_code" class="field-label">{{ t("returns.reason") }}</label>
+            <select id="reason_code" name="reason_code" class="input" required>
+              {% for reason in reasons %}
+                <option value="{{ reason }}">{{ t("returns.reason_" ~ reason) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label for="reason_detail" class="field-label">
+              {{ t("returns.customer_note") }}
+              <span class="field-optional">({{ t("auth.optional") }})</span>
+            </label>
+            <textarea id="reason_detail" name="reason_detail" rows="3" class="input"
+                      placeholder="{{ t('returns.detail_placeholder') }}"></textarea>
+          </div>
+        </section>
+
+        {# Set expectations up front: §12 gates every refund on an inspection,
+           so promising money back here would be misleading. #}
+        <p class="flex items-start gap-2 rounded-card border border-neutral-200 bg-neutral-50
+                  p-3 text-sm text-neutral-600">
+          {{ icon.info(class="h-4 w-4 shrink-0 mt-0.5 text-neutral-400") }}
+          <span>{{ t("returns.inspection_notice") }}</span>
+        </p>
+
+        <button type="submit" class="btn-primary btn-lg">{{ t("returns.submit_request") }}</button>
+      </form>
+    {% else %}
+      <div class="state-panel">
+        {{ icon.package(class="h-10 w-10 text-neutral-300") }}
+        <p class="state-panel__title">{{ t("returns.nothing_returnable") }}</p>
+        <p class="state-panel__body">{{ t("returns.nothing_returnable_hint") }}</p>
+        <a href="/account/orders" class="btn-outline btn-sm mt-2">{{ t("header.orders") }}</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

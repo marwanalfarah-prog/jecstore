@@ -1,0 +1,163 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Receiving an invoice (Part I §11). The pool can be set for the whole invoice
+   or per line — §11 leaves that to Admin, so both are offered. #}
+
+{% block title %}{{ t("inventory.new_shipment") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-4"
+     x-data="{ rows: [0], currency: 'JOD', noInvoice: false, next: 1 }">
+
+  {% with title = t("inventory.new_shipment"), subtitle = t("inventory.new_shipment_purpose"),
+          back_href = "/admin/inventory/shipments", back_label = t("admin.shipments") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <form method="post" action="/admin/inventory/shipments/new" class="space-y-4">
+
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("inventory.invoice") }}</h2>
+      </div>
+      <div class="admin-panel__body grid gap-3 sm:grid-cols-3">
+        <div>
+          <label for="reference" class="field-label">{{ t("admin.reference") }}</label>
+          <input id="reference" name="reference" type="text" dir="ltr"
+                 value="{{ suggested_reference }}" class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="supplier_name" class="field-label">{{ t("inventory.supplier") }}</label>
+          <input id="supplier_name" name="supplier_name" type="text"
+                 class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="invoice_date" class="field-label">{{ t("inventory.invoice_date") }}</label>
+          <input id="invoice_date" name="invoice_date" type="date"
+                 class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+
+        <div>
+          <label for="currency" class="field-label">{{ t("currency.label") }}</label>
+          {# Only JOD or USD are accepted for shipment costing (§1.1, §11). #}
+          <select id="currency" name="currency" x-model="currency"
+                  class="input h-9 min-h-0 py-0 text-sm">
+            {% for code in currencies %}
+              <option value="{{ code }}">{{ code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div x-show="currency === 'USD'" x-cloak>
+          <label for="usd_rate_used" class="field-label">{{ t("inventory.usd_rate") }}</label>
+          <input id="usd_rate_used" name="usd_rate_used" type="text" inputmode="decimal" dir="ltr"
+                 placeholder="1.41" class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="stock_pool_id" class="field-label">{{ t("inventory.invoice_pool") }}</label>
+          <select id="stock_pool_id" name="stock_pool_id" class="input h-9 min-h-0 py-0 text-sm">
+            {% for pool in pools %}
+              <option value="{{ pool.pk_stock_pool_id }}">{{ localized(pool) }}</option>
+            {% endfor %}
+          </select>
+          <p class="field-hint">{{ t("inventory.pool_hint") }}</p>
+        </div>
+
+        <div>
+          <label for="shipping_cost_amt" class="field-label">{{ t("inventory.freight") }}</label>
+          <input id="shipping_cost_amt" name="shipping_cost_amt" type="text" inputmode="decimal"
+                 dir="ltr" value="0" class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="customs_cost_amt" class="field-label">{{ t("inventory.customs") }}</label>
+          <input id="customs_cost_amt" name="customs_cost_amt" type="text" inputmode="decimal"
+                 dir="ltr" value="0" class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="invoice_file_path" class="field-label">{{ t("inventory.invoice_file") }}</label>
+          <input id="invoice_file_path" name="invoice_file_path" type="text" dir="ltr"
+                 :disabled="noInvoice" class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+
+        <label class="flex items-center gap-2 text-sm sm:col-span-3">
+          <input type="checkbox" name="no_invoice_available" value="1" x-model="noInvoice"
+                 class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+          {{ t("inventory.no_invoice_available") }}
+        </label>
+      </div>
+    </section>
+
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("orders.items") }}</h2>
+        <button type="button" class="btn-outline btn-sm ms-auto"
+                @click="rows.push(next++)">
+          {{ icon.plus(class="h-4 w-4") }} {{ t("inventory.add_line") }}
+        </button>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.product") }}</th>
+              <th class="num">{{ t("product.quantity") }}</th>
+              <th class="num">{{ t("inventory.unit_cost") }}</th>
+              <th>{{ t("inventory.line_pool") }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(row, index) in rows" :key="row">
+              <tr>
+                <td>
+                  <select name="variant_id" class="input h-9 min-h-0 w-full py-0 text-sm">
+                    <option value="">—</option>
+                    {% for variant, product in variants %}
+                      <option value="{{ variant.pk_product_variant_id }}">
+                        {{ localized(product) }} ({{ variant.sku }})
+                      </option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td class="num">
+                  <input name="quantity" type="number" min="0" value="0"
+                         class="input h-9 w-20 min-h-0 py-0 text-end text-sm">
+                </td>
+                <td class="num">
+                  <input name="unit_cost" type="text" inputmode="decimal" dir="ltr" value="0"
+                         class="input h-9 w-24 min-h-0 py-0 text-end text-sm">
+                </td>
+                <td>
+                  <select name="line_pool_id" class="input h-9 min-h-0 w-full py-0 text-sm">
+                    <option value="">{{ t("inventory.use_invoice_pool") }}</option>
+                    {% for pool in pools %}
+                      <option value="{{ pool.pk_stock_pool_id }}">{{ localized(pool) }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <button type="button" class="btn-ghost btn-sm px-2"
+                          @click="rows = rows.filter(r => r !== row)"
+                          x-show="rows.length > 1"
+                          aria-label="{{ t('cart.remove') }}">
+                    {{ icon.close(class="h-4 w-4") }}
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-panel">
+      <div class="admin-panel__body">
+        <label for="note" class="field-label">{{ t("admin.add_note") }}</label>
+        <textarea id="note" name="note" rows="2" class="input"></textarea>
+      </div>
+    </section>
+
+    <button type="submit" class="btn-primary">{{ t("inventory.receive") }}</button>
+  </form>
+</div>
+{% endblock %}

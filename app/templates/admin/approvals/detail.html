@@ -1,0 +1,160 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% set row = approval.row %}
+
+{% block title %}{{ t("approvals.review") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-5">
+
+  {% with title = t("approvals.review"), subtitle = t("approvals.detail_purpose"),
+          back_href = "/admin/approvals", back_label = t("admin.approvals") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ localized(approval.permission) }}</h2>
+      {% set tone = {"pending": "badge-warning", "approved": "badge-success",
+                     "rejected": "badge-danger", "cancelled": "badge-neutral"} %}
+      <span class="{{ tone.get(row.status, 'badge-neutral') }} ms-auto">
+        {{ t("approvals.status_" ~ row.status) }}
+      </span>
+    </div>
+
+    <div class="admin-panel__body space-y-5">
+      <p class="text-sm text-neutral-700">
+        {{ (row.summary_ar if lang == "ar" else row.summary_en) or "—" }}
+      </p>
+
+      <dl class="admin-dl">
+        <div>
+          <dt>{{ t("approvals.maker") }}</dt>
+          <dd>{{ approval.maker.username if approval.maker else "—" }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("approvals.requested") }}</dt>
+          <dd>{{ datetime(row.requested_dt) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("approvals.required_approvals") }}</dt>
+          <dd class="tabular">{{ num(row.required_approvals) }}</dd>
+        </div>
+        {% if row.target_table %}
+          <div>
+            <dt>{{ t("approvals.target") }}</dt>
+            <dd dir="ltr" class="text-xs">{{ row.target_table }} #{{ num(row.target_row_id or 0) }}</dd>
+          </div>
+        {% endif %}
+      </dl>
+
+      {# The exact arguments the checker is approving. Shown in full: approving
+         a summary while the stored parameters say something else is the whole
+         failure mode maker-checker exists to prevent. #}
+      {% if params %}
+        <div>
+          <h3 class="mb-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
+            {{ t("approvals.parameters") }}
+          </h3>
+          <div class="admin-table-wrap rounded-control border border-neutral-200">
+            <table class="admin-table">
+              <tbody>
+                {% for name, value in params.items() %}
+                  <tr>
+                    <td class="w-1/3 font-medium text-neutral-600">{{ name }}</td>
+                    <td dir="ltr">{{ value }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if row.execution_error %}
+        <div class="flex items-start gap-2 rounded-control bg-danger-50 p-3 text-sm text-danger-700">
+          {{ icon.alert(class="h-4 w-4 shrink-0") }}
+          <div>
+            <p class="font-semibold">{{ t("approvals.execution_failed") }}</p>
+            <p class="mt-1" dir="ltr">{{ row.execution_error }}</p>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# --- Decide ---------------------------------------------------------- #}
+  {% if row.status == "pending" %}
+    {% if can_decide %}
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("approvals.decide") }}</h2>
+        </div>
+        <div class="admin-panel__body space-y-3">
+          <label for="note" class="field-label">
+            {{ t("approvals.note") }}<span class="field-optional">({{ t("auth.optional") }})</span>
+          </label>
+          <textarea id="note" name="note" rows="2" class="input" form="approve-form"></textarea>
+
+          <div class="flex flex-wrap gap-2">
+            <form id="approve-form" method="post"
+                  action="/admin/approvals/{{ row.pk_approval_request_id }}/approve">
+              <button type="submit" class="btn-primary">
+                {{ icon.check(class="h-4 w-4") }} {{ t("approvals.approve") }}
+              </button>
+            </form>
+            <form method="post" action="/admin/approvals/{{ row.pk_approval_request_id }}/reject" data-confirm="{{ t('approvals.confirm_reject') }}">
+              <button type="submit" class="btn-outline">{{ t("approvals.reject") }}</button>
+            </form>
+          </div>
+        </div>
+      </section>
+    {% elif is_mine %}
+      {# A maker can never approve their own action, even if their role would
+         otherwise qualify them (Part I §2.2.1). #}
+      <div class="flex items-start gap-2 rounded-card border border-neutral-200 bg-white p-4
+                  text-sm text-neutral-600">
+        {{ icon.info(class="h-4 w-4 shrink-0 text-neutral-400") }}
+        <div class="flex-1">
+          <p>{{ t("approvals.cannot_approve_own") }}</p>
+        </div>
+        <form method="post" action="/admin/approvals/{{ row.pk_approval_request_id }}/cancel" data-confirm="{{ t('approvals.confirm_withdraw') }}">
+          <button type="submit" class="btn-outline btn-sm">{{ t("approvals.withdraw") }}</button>
+        </form>
+      </div>
+    {% else %}
+      <p class="rounded-card border border-neutral-200 bg-white p-4 text-sm text-neutral-500">
+        {{ t("approvals.not_a_checker") }}
+      </p>
+    {% endif %}
+  {% endif %}
+
+  {# --- Decision history ------------------------------------------------- #}
+  {% if decisions %}
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("approvals.history") }}</h2>
+      </div>
+      <div class="admin-panel__body">
+        <ul class="space-y-3">
+          {% for decision in decisions %}
+            <li class="flex items-start gap-3 text-sm">
+              <span class="{{ 'badge-success' if decision.decision == 'approved' else 'badge-danger' }}">
+                {{ t("approvals.status_" ~ decision.decision) }}
+              </span>
+              <div class="min-w-0">
+                <p class="text-neutral-700">#{{ num(decision.decided_by_user_id) }}</p>
+                {% if decision.note %}
+                  <p class="text-neutral-500">{{ decision.note }}</p>
+                {% endif %}
+                <p class="text-xs text-neutral-400">{{ datetime(decision.created_dt) }}</p>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

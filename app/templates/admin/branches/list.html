@@ -1,0 +1,213 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Branches (Part I §6): name, phone, coordinates for the embedded map, and the
+   standing weekly schedule. One-off closures are homepage announcements
+   instead, per §4's decision. #}
+
+{% block title %}{{ t("admin.branches") }}{% endblock %}
+
+{% macro hours_fields(branch_id, existing) %}
+  <div class="mt-3 border-t border-neutral-100 pt-3">
+    <p class="field-label">{{ t("branch.hours") }}</p>
+    <div class="space-y-1.5">
+      {% for weekday in weekdays %}
+        {% set row = existing.get(weekday) %}
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          <span class="w-24 shrink-0 text-neutral-600">{{ t("branch.weekday_" ~ weekday) }}</span>
+          <input name="opens_{{ weekday }}" type="time"
+                 value="{{ row.opens_at if row and row.opens_at else '' }}"
+                 class="input h-8 w-28 min-h-0 py-0 text-sm">
+          <span class="text-neutral-400">&ndash;</span>
+          <input name="closes_{{ weekday }}" type="time"
+                 value="{{ row.closes_at if row and row.closes_at else '' }}"
+                 class="input h-8 w-28 min-h-0 py-0 text-sm">
+          <label class="flex items-center gap-1.5 text-xs text-neutral-600">
+            <input type="checkbox" name="closed_{{ weekday }}" value="1"
+                   {% if row and row.is_closed_flag %}checked{% endif %}
+                   class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+            {{ t("branch.closed") }}
+          </label>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endmacro %}
+
+{% block content %}
+<div class="space-y-4" x-data="{ open: null, creating: false }">
+
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="text-base font-semibold text-navy-900">{{ t("admin.branches") }}</h2>
+    <button type="button" class="btn-primary btn-sm ms-auto" @click="creating = !creating">
+      {{ icon.plus(class="h-4 w-4") }} {{ t("branch.new") }}
+    </button>
+  </div>
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("admin.branches"), subtitle = t("branch.purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  {# --- New branch ------------------------------------------------------ #}
+  <section class="admin-panel" x-show="creating" x-cloak>
+    <div class="admin-panel__head">
+      <h3 class="admin-panel__title">{{ t("branch.new") }}</h3>
+    </div>
+    <form method="post" action="/admin/branches" class="admin-panel__body">
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label for="new_name_ar" class="field-label">{{ t("branch.name_ar") }}</label>
+          <input id="new_name_ar" name="name_ar" type="text" required
+                 class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="new_name_en" class="field-label">{{ t("branch.name_en") }}</label>
+          <input id="new_name_en" name="name_en" type="text" dir="ltr" required
+                 class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="new_phone_cc" class="field-label">{{ t("auth.country_code") }}</label>
+          <input id="new_phone_cc" name="phone_country_code" type="text" dir="ltr"
+                 value="+962" class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="new_phone" class="field-label">{{ t("branch.phone") }}</label>
+          <input id="new_phone" name="phone_number" type="tel" dir="ltr"
+                 class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="new_lat" class="field-label">{{ t("branch.latitude") }}</label>
+          <input id="new_lat" name="latitude" type="text" inputmode="decimal" dir="ltr"
+                 class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="new_lng" class="field-label">{{ t("branch.longitude") }}</label>
+          <input id="new_lng" name="longitude" type="text" inputmode="decimal" dir="ltr"
+                 class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="new_addr_ar" class="field-label">{{ t("branch.address_ar") }}</label>
+          <input id="new_addr_ar" name="address_ar" type="text"
+                 class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <div>
+          <label for="new_addr_en" class="field-label">{{ t("branch.address_en") }}</label>
+          <input id="new_addr_en" name="address_en" type="text" dir="ltr"
+                 class="input h-9 min-h-0 py-0 text-sm">
+        </div>
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="is_pickup_point" value="1" checked
+                 class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+          {{ t("branch.pickup") }}
+        </label>
+      </div>
+      {{ hours_fields(none, {}) }}
+      <div class="mt-3">
+        <button type="submit" class="btn-primary btn-sm">{{ t("branch.new") }}</button>
+      </div>
+    </form>
+  </section>
+
+  {# --- Existing branches ---------------------------------------------- #}
+  {% if branches %}
+    <div class="space-y-2">
+      {% for branch in branches %}
+        <section class="admin-panel">
+          <div class="admin-panel__head">
+            <h3 class="admin-panel__title">{{ localized(branch) }}</h3>
+            {% if branch.is_pickup_point_flag %}
+              <span class="badge-success">{{ t("branch.pickup") }}</span>
+            {% endif %}
+            {% if branch.phone_number %}
+              <span class="text-xs text-neutral-500" dir="ltr">
+                {{ branch.phone_country_code }} {{ branch.phone_number }}
+              </span>
+            {% endif %}
+            <div class="ms-auto flex gap-1">
+              <button type="button" class="btn-ghost btn-sm"
+                      @click="open = open === {{ branch.pk_branch_id }}
+                                     ? null : {{ branch.pk_branch_id }}">
+                {{ t("content.edit") }}
+              </button>
+              <form method="post" action="/admin/branches/{{ branch.pk_branch_id }}/remove" data-confirm="{{ t('content.confirm_close_branch') }}">
+                <button type="submit" class="btn-ghost btn-sm text-danger-600">
+                  {{ t("content.remove") }}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <form x-show="open === {{ branch.pk_branch_id }}" x-cloak
+                method="post" action="/admin/branches" class="admin-panel__body">
+            <input type="hidden" name="branch_id" value="{{ branch.pk_branch_id }}">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label class="field-label">{{ t("branch.name_ar") }}</label>
+                <input name="name_ar" type="text" value="{{ branch.name_ar }}"
+                       class="input h-9 min-h-0 py-0 text-sm">
+              </div>
+              <div>
+                <label class="field-label">{{ t("branch.name_en") }}</label>
+                <input name="name_en" type="text" dir="ltr" value="{{ branch.name_en }}"
+                       class="input h-9 min-h-0 py-0 text-sm">
+              </div>
+              <div>
+                <label class="field-label">{{ t("auth.country_code") }}</label>
+                <input name="phone_country_code" type="text" dir="ltr"
+                       value="{{ branch.phone_country_code or '' }}"
+                       class="input h-9 min-h-0 py-0 text-sm">
+              </div>
+              <div>
+                <label class="field-label">{{ t("branch.phone") }}</label>
+                <input name="phone_number" type="tel" dir="ltr"
+                       value="{{ branch.phone_number or '' }}"
+                       class="input h-9 min-h-0 py-0 text-sm">
+              </div>
+              <div>
+                <label class="field-label">{{ t("branch.latitude") }}</label>
+                <input name="latitude" type="text" inputmode="decimal" dir="ltr"
+                       value="{{ branch.latitude if branch.latitude is not none else '' }}"
+                       class="input h-9 min-h-0 py-0 text-sm">
+              </div>
+              <div>
+                <label class="field-label">{{ t("branch.longitude") }}</label>
+                <input name="longitude" type="text" inputmode="decimal" dir="ltr"
+                       value="{{ branch.longitude if branch.longitude is not none else '' }}"
+                       class="input h-9 min-h-0 py-0 text-sm">
+              </div>
+              <div>
+                <label class="field-label">{{ t("branch.address_ar") }}</label>
+                <input name="address_ar" type="text" value="{{ branch.address_ar or '' }}"
+                       class="input h-9 min-h-0 py-0 text-sm">
+              </div>
+              <div>
+                <label class="field-label">{{ t("branch.address_en") }}</label>
+                <input name="address_en" type="text" dir="ltr"
+                       value="{{ branch.address_en or '' }}"
+                       class="input h-9 min-h-0 py-0 text-sm">
+              </div>
+              <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="is_pickup_point" value="1"
+                       {% if branch.is_pickup_point_flag %}checked{% endif %}
+                       class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                {{ t("branch.pickup") }}
+              </label>
+            </div>
+            {{ hours_fields(branch.pk_branch_id, hours.get(branch.pk_branch_id, {})) }}
+            <div class="mt-3">
+              <button type="submit" class="btn-primary btn-sm">{{ t("common.save") }}</button>
+            </div>
+          </form>
+        </section>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="state-panel">
+      {{ icon.pin(class="h-10 w-10 text-neutral-300") }}
+      <p class="state-panel__title">{{ t("branch.empty") }}</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{# A grid of product cards, with its empty state built in.
+
+   Part II §5 requires every page to handle loading, success and failure
+   explicitly. Empty is the fourth state a listing page actually hits, and
+   §17.4 calls out the old site's near-empty category pages by name — so the
+   grid owns that state rather than leaving each caller to reinvent it.
+
+   Expects: products, prices (by id), availability (by id)
+   Optional: empty_title, empty_body
+#}
+
+{% if products %}
+  <div class="product-grid">
+    {% for product in products %}
+      {# The card wants one price and one availability, so unpack the batched
+         lookups here — the caller resolves them in two queries, not 2N. #}
+      {% with price = prices[product.pk_product_id],
+              availability = availability[product.pk_product_id] %}
+        {% include "partials/product_card.html" %}
+      {% endwith %}
+    {% endfor %}
+  </div>
+{% else %}
+  {% import "partials/icons.html" as icon %}
+  <div class="state-panel">
+    {{ icon.package(class="h-10 w-10 text-neutral-300") }}
+    <p class="state-panel__title">{{ empty_title | default(t("listing.no_results")) }}</p>
+    <p class="state-panel__body">{{ empty_body | default(t("listing.no_results_hint")) }}</p>
+    <a href="/" class="btn-outline btn-sm mt-2">{{ t("state.back_home") }}</a>
+  </div>
+{% endif %}

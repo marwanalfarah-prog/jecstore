@@ -1,0 +1,119 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.dashboard") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  {% with title = t("admin.welcome_back", name=ctx.user.username),
+          subtitle = t("admin.dashboard_purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  {# The approvals banner comes first and stays first. A parked action is the
+     one thing on this screen that is blocking somebody else's work (§2.2.1). #}
+  {% if pending_approvals %}
+    <a href="/admin/approvals"
+       class="flex items-center gap-3 rounded-card border border-primary-200 bg-primary-50
+              p-4 transition hover:bg-primary-100">
+      {{ icon.shield(class="h-5 w-5 shrink-0 text-primary-700") }}
+      <span class="text-sm font-medium text-primary-800">
+        {{ t("admin.approvals_waiting", count=num(pending_approvals)) }}
+      </span>
+      {{ icon.chevron_forward(class="ms-auto h-4 w-4 text-primary-700") }}
+    </a>
+  {% endif %}
+
+  {% if tiles %}
+    <section>
+      <h2 class="mb-2 text-xs font-bold uppercase tracking-wide text-neutral-500">
+        {{ t("admin.needs_attention") }}
+      </h2>
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {% for tile in tiles %}
+          <a href="{{ tile.href }}"
+             class="stat-tile transition hover:border-primary-200 hover:shadow-card
+                    {% if tile.tone == 'warning' %}border-warning-100 bg-warning-50{% endif %}">
+            <p class="stat-tile__label">{{ t(tile.label_key) }}</p>
+            <p class="stat-tile__value {% if tile.tone == 'warning' %}text-warning-700{% endif %}">
+              {{ num(tile.value | int) }}
+            </p>
+            {# A bare number is a quiz. The hint says what it counts and what
+               opening it will let you do about it. #}
+            {% if tile.hint_key %}
+              <p class="stat-tile__hint">{{ t(tile.hint_key) }}</p>
+            {% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if can.get("orders.view") %}
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("admin.recent_orders") }}</h2>
+        <a href="/admin/orders" class="ms-auto text-xs font-semibold text-secondary-700 hover:underline">
+          {{ t("home.view_all") }}
+        </a>
+      </div>
+
+      {% if recent_orders %}
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>{{ t("orders.order_number") }}</th>
+                <th>{{ t("admin.placed") }}</th>
+                <th>{{ t("admin.status") }}</th>
+                <th>{{ t("orders.payment_status") }}</th>
+                <th class="num">{{ t("cart.total") }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in recent_orders %}
+                <tr>
+                  <td>
+                    <a href="/admin/orders/{{ order.pk_order_id }}"
+                       class="font-medium text-secondary-700 hover:underline" dir="ltr">
+                      {{ order.order_number }}
+                    </a>
+                  </td>
+                  <td class="whitespace-nowrap text-xs text-neutral-500">{{ datetime(order.placed_dt) }}</td>
+                  <td>
+                    {# The same badge tones as /admin/orders. §17.7: the same
+                       colour means the same status on every screen. #}
+                    {% set tone = {"placed":"badge-neutral","in_preparation":"badge-warning",
+                                   "partially_fulfilled":"badge-warning","complete":"badge-success",
+                                   "cancelled":"badge-danger"} %}
+                    <span class="{{ tone.get(order.status, 'badge-neutral') }}">
+                      {{ t("orders.status_" ~ order.status) }}
+                    </span>
+                  </td>
+                  <td>
+                    {% set ptone = {"paid":"badge-success","partially_paid":"badge-warning",
+                                    "not_paid":"badge-neutral","refunded":"badge-danger",
+                                    "partially_refunded":"badge-warning"} %}
+                    <span class="{{ ptone.get(order.payment_status, 'badge-neutral') }}">
+                      {{ t("orders.payment_" ~ order.payment_status) }}
+                    </span>
+                  </td>
+                  <td class="num">{{ money(order.total_amt) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="admin-panel__body">
+          {% with empty_icon = "receipt", empty_title = t("admin.no_orders_yet"),
+                  empty_body = t("admin.no_orders_yet_hint") %}
+            {% include "admin/partials/empty.html" %}
+          {% endwith %}
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

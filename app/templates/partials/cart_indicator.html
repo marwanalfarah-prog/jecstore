@@ -1,0 +1,14 @@
+{% import "partials/icons.html" as icon %}
+<a href="/cart" id="cart-indicator"
+   {% if oob|default(false) %}hx-swap-oob="true"{% endif %}
+   class="btn-icon relative bg-secondary-600 text-white hover:bg-secondary-700 hover:text-white"
+   aria-label="{{ t('header.cart') }}">
+  {{ icon.cart() }}
+  {% if ctx.cart_count %}
+    <span class="absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center
+                 rounded-full bg-primary-600 px-1 text-2xs font-bold text-white
+                 ring-2 ring-white">
+      {{ num(ctx.cart_count) }}
+    </span>
+  {% endif %}
+</a>

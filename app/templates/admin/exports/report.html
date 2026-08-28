@@ -1,0 +1,120 @@
+{# Print-ready report (Part I §2.2).
+
+   Used for both the PDF renderer and the browser print view, so what an
+   accountant sees on screen is exactly what lands in the file. Deliberately
+   self-contained: WeasyPrint gets no chance to miss the stylesheet.
+#}
+<!doctype html>
+<html lang="{{ dataset.language }}" dir="{{ 'rtl' if dataset.is_rtl else 'ltr' }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ dataset.title }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
+  <style>
+    @page { size: A4; margin: 14mm 12mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "IBM Plex Sans Arabic", "IBM Plex Sans", system-ui, sans-serif;
+      font-size: 10pt; color: #2B2B2F; margin: 0;
+    }
+    header { border-bottom: 2px solid #E63950; padding-bottom: 8px; margin-bottom: 12px; }
+    h1 { font-size: 15pt; margin: 0 0 4px; color: #2C3446; }
+    .meta { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 8.5pt; color: #5A5A60; }
+    .meta span strong { color: #2B2B2F; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { display: table-header-group; }   /* repeat headers across pages */
+    th {
+      background: #2C3446; color: #fff; font-size: 8pt; text-transform: uppercase;
+      letter-spacing: .03em; padding: 6px 7px; text-align: start;
+    }
+    td { padding: 5px 7px; border-bottom: 1px solid #E9E9EA; }
+    tr { break-inside: avoid; }
+    tbody tr:nth-child(even) { background: #FAFAFA; }
+    .num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    tfoot td { font-weight: 700; border-top: 2px solid #2C3446; background: #F5F5F5; }
+    footer {
+      margin-top: 14px; padding-top: 6px; border-top: 1px solid #E9E9EA;
+      font-size: 8pt; color: #7C7C82; display: flex; justify-content: space-between;
+    }
+    .no-print { margin-bottom: 12px; }
+    .no-print button {
+      background: #E63950; color: #fff; border: 0; border-radius: 6px;
+      padding: 8px 16px; font: inherit; font-weight: 600; cursor: pointer;
+    }
+    @media print { .no-print { display: none !important; } }
+  </style>
+</head>
+<body>
+
+  <div class="no-print">
+    <button type="button" onclick="window.print()">{{ t("exports.print") }}</button>
+  </div>
+
+  <header>
+    <h1>{{ dataset.title }}</h1>
+    <div class="meta">
+      {% for key, value in dataset.meta.items() %}
+        <span><strong>{{ key }}:</strong> {{ value }}</span>
+      {% endfor %}
+    </div>
+  </header>
+
+  {% if dataset.rows %}
+    <table>
+      <thead>
+        <tr>
+          {% for column in dataset.columns %}
+            <th class="{{ 'num' if column.kind in ('money', 'number') else '' }}">
+              {{ column.label }}
+            </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in dataset.rows %}
+          <tr>
+            {% for column in dataset.columns %}
+              <td class="{{ 'num' if column.kind in ('money', 'number') else '' }}">
+                {%- set value = row.get(column.key) -%}
+                {%- if value is none -%}—
+                {%- elif column.kind == "money" -%}{{ money(value) }}
+                {%- elif column.kind == "number" -%}{{ num(value) }}
+                {%- elif column.kind == "date" -%}{{ date(value) }}
+                {%- else -%}{{ value }}
+                {%- endif -%}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+      {% if dataset.totals %}
+        <tfoot>
+          <tr>
+            {% for column in dataset.columns %}
+              <td class="{{ 'num' if column.kind in ('money', 'number') else '' }}">
+                {%- set value = dataset.totals.get(column.key) -%}
+                {%- if value is none -%}
+                {%- elif column.kind == "money" -%}{{ money(value) }}
+                {%- elif column.kind == "number" -%}{{ num(value) }}
+                {%- else -%}{{ value }}
+                {%- endif -%}
+              </td>
+            {% endfor %}
+          </tr>
+        </tfoot>
+      {% endif %}
+    </table>
+  {% else %}
+    <p style="color:#7C7C82">{{ t("listing.no_results") }}</p>
+  {% endif %}
+
+  <footer>
+    <span>{{ t("site.name") }}</span>
+    {# Currency is always labelled — §1.1 requires it on anything downloaded. #}
+    <span>{{ t("exports.amounts_in", currency=t("currency." ~ currency|lower)) }}</span>
+    <span>{{ datetime(now) }}</span>
+  </footer>
+</body>
+</html>

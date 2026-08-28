@@ -1,0 +1,295 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ arrangement.reference }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = arrangement.reference, title_ltr = true, subtitle = t("consignment.detail_purpose"),
+          back_href = "/admin/consignment", back_label = t("admin.consignment") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title" dir="ltr">{{ arrangement.reference }}</h2>
+      {% if arrangement.direction == "inbound" %}
+        <span class="badge-success">{{ t("consignment.direction_inbound") }}</span>
+      {% else %}
+        <span class="badge-warning">{{ t("consignment.direction_outbound") }}</span>
+      {% endif %}
+      <span class="badge-neutral">{{ t("consignment.basis_" ~ arrangement.split_basis) }}</span>
+      {% if arrangement.closed_dt %}
+        <span class="badge-neutral ms-auto">{{ t("common.close") }}</span>
+      {% endif %}
+    </div>
+    <div class="admin-panel__body">
+      <dl class="admin-dl lg:grid-cols-4">
+        <div>
+          <dt>{{ t("consignment.consignor") }}</dt>
+          <dd>{{ consignor.name if consignor else "..." }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("consignment.our_share") }}</dt>
+          <dd>{{ percentage(arrangement.default_our_share_percentage) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("consignment.promocodes_eligible") }}</dt>
+          <dd>{{ t("common.yes") if arrangement.promocodes_eligible_flag else t("common.no") }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("consignment.net_owed") }}</dt>
+          <dd class="{% if position.we_owe %}text-danger-700{% else %}text-success-700{% endif %}">
+            {{ money(position.net_owed_amt) }}
+          </dd>
+        </div>
+        {% if arrangement.note %}
+          <div class="lg:col-span-4">
+            <dt>{{ t("approvals.note") }}</dt>
+            <dd class="font-normal text-neutral-600">{{ arrangement.note }}</dd>
+          </div>
+        {% endif %}
+      </dl>
+    </div>
+  </section>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("consignment.holdings") }}</h2>
+    </div>
+    {% if holdings %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.product") }}</th>
+              <th class="num">{{ t("consignment.placed") }}</th>
+              <th class="num">{{ t("consignment.sold") }}</th>
+              <th class="num">{{ t("consignment.returned") }}</th>
+              <th class="num">{{ t("consignment.damaged") }}</th>
+              <th class="num">{{ t("consignment.outstanding") }}</th>
+              <th>{{ t("admin.status") }}</th>
+              <th>{{ t("consignment.return_units") }}</th>
+              <th>{{ t("consignment.record_loss") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in holdings %}
+              <tr>
+                <td>
+                  <span class="font-medium text-navy-900">
+                    {{ localized(row.product) if row.product else "..." }}
+                  </span>
+                  {% if row.variant and row.variant.sku %}
+                    <span class="block text-2xs text-neutral-400" dir="ltr">{{ row.variant.sku }}</span>
+                  {% endif %}
+                </td>
+                <td class="num">{{ num(row.item.quantity_placed) }}</td>
+                <td class="num">{{ num(row.item.quantity_sold) }}</td>
+                <td class="num">{{ num(row.item.quantity_returned) }}</td>
+                <td class="num">{{ num(row.item.quantity_damaged_or_lost) }}</td>
+                <td class="num">{{ num(row.outstanding) }}</td>
+                <td>
+                  {% set state_tone = {
+                    "held": "badge-success",
+                    "sold": "badge-neutral",
+                    "returned": "badge-neutral",
+                    "recalled": "badge-warning",
+                    "damaged_or_lost": "badge-danger"
+                  } %}
+                  <span class="{{ state_tone.get(row.item.state, 'badge-neutral') }}">
+                    {{ t("consignment.state_" ~ row.item.state) }}
+                  </span>
+                </td>
+                <td>
+                  {% if row.outstanding > 0 %}
+                    <form method="post"
+                          action="/admin/consignment/{{ arrangement.pk_consignment_id }}/items/{{ row.item.pk_consignment_item_id }}/return"
+                          class="flex min-w-44 items-center gap-2">
+                      <input name="quantity" type="number" min="1" max="{{ row.outstanding }}"
+                             placeholder="{{ t('consignment.partial_recall') }}"
+                             class="input h-8 w-24 min-h-0 py-0 text-sm">
+                      <button type="submit" class="btn-outline btn-sm">{{ t("consignment.return_units") }}</button>
+                    </form>
+                  {% else %}
+                    <span class="text-xs text-neutral-500">{{ t("consignment.nothing_outstanding") }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if row.outstanding > 0 %}
+                    <form method="post"
+                          action="/admin/consignment/{{ arrangement.pk_consignment_id }}/items/{{ row.item.pk_consignment_item_id }}/loss"
+                          class="grid min-w-56 gap-2" data-confirm="{{ t('consignment.confirm_loss') }}">
+                      <div class="flex items-center gap-2">
+                        <input name="quantity" type="number" min="1" max="{{ row.outstanding }}" value="1"
+                               class="input h-8 w-20 min-h-0 py-0 text-sm">
+                        <select name="reason" class="input h-8 min-h-0 py-0 text-sm">
+                          {% for reason in reasons %}
+                            <option value="{{ reason }}">{{ t("inventory.reason_" ~ reason) }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                      <input name="note" type="text" class="input h-8 min-h-0 py-0 text-sm"
+                             placeholder="{{ t('approvals.note') }}">
+                      <button type="submit" class="btn-outline btn-sm justify-self-start">
+                        {{ t("consignment.record_loss") }}
+                      </button>
+                    </form>
+                  {% else %}
+                    <span class="text-xs text-neutral-500">{{ t("consignment.nothing_outstanding") }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        <div class="state-panel border-0 bg-transparent py-8">
+          {{ icon.package(class="h-9 w-9 text-neutral-300") }}
+          <p class="state-panel__title">{{ t("consignment.nothing_outstanding") }}</p>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+
+  <div class="grid gap-4 lg:grid-cols-2">
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("consignment.add_items") }}</h2>
+      </div>
+      <form method="post" action="/admin/consignment/{{ arrangement.pk_consignment_id }}/items"
+            class="admin-panel__body space-y-3">
+        <div>
+          <label for="variant_id" class="field-label">{{ t("admin.product") }}</label>
+          <select id="variant_id" name="variant_id" class="input">
+            {% for variant, product in variants %}
+              <option value="{{ variant.pk_product_variant_id }}">
+                {{ localized(product) }}{% if variant.sku %} - {{ variant.sku }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label for="quantity" class="field-label">{{ t("product.quantity") }}</label>
+            <input id="quantity" name="quantity" type="number" min="1" value="1"
+                   class="input" dir="ltr">
+          </div>
+          <div>
+            <label for="agreed_price_amt" class="field-label">{{ t("consignment.agreed_price") }}</label>
+            <input id="agreed_price_amt" name="agreed_price_amt" type="text" inputmode="decimal"
+                   class="input" dir="ltr">
+          </div>
+          <div>
+            <label for="our_share_percentage" class="field-label">{{ t("consignment.our_share") }}</label>
+            <input id="our_share_percentage" name="our_share_percentage" type="text" inputmode="decimal"
+                   class="input" dir="ltr">
+          </div>
+        </div>
+        <button type="submit" class="btn-primary btn-sm">
+          {{ icon.plus(class="h-4 w-4") }} {{ t("consignment.add_items") }}
+        </button>
+      </form>
+    </section>
+
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("consignment.settlement") }}</h2>
+      </div>
+      <div class="admin-panel__body space-y-4">
+        <dl class="admin-dl sm:grid-cols-3">
+          <div>
+            <dt>{{ t("consignment.our_share") }}</dt>
+            <dd>{{ money(position.our_share_amt) }}</dd>
+          </div>
+          <div>
+            <dt>{{ t("consignment.their_share") }}</dt>
+            <dd>{{ money(position.their_share_amt) }}</dd>
+          </div>
+          <div>
+            <dt>{{ t("consignment.net_owed") }}</dt>
+            <dd class="{% if position.we_owe %}text-danger-700{% else %}text-success-700{% endif %}">
+              {{ money(position.net_owed_amt) }}
+            </dd>
+          </div>
+        </dl>
+
+        <p class="text-sm font-medium {% if position.we_owe %}text-danger-700{% else %}text-success-700{% endif %}">
+          {{ t("consignment.we_owe") if position.we_owe else t("consignment.they_owe") }}
+        </p>
+
+        <form method="post" action="/admin/consignment/{{ arrangement.pk_consignment_id }}/settle"
+              class="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <div>
+            <label for="money_box_id" class="field-label">{{ t("admin.money_box") }}</label>
+            <select id="money_box_id" name="money_box_id" class="input">
+              {% for box in boxes %}
+                <option value="{{ box.pk_money_box_id }}">{{ localized(box) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="sm:self-end">
+            <button type="submit" class="btn-primary btn-sm"
+                    {% if not position.unsettled_sales or not boxes %}disabled{% endif %}>
+              {{ t("consignment.settle") }}
+            </button>
+          </div>
+          <div class="sm:col-span-2">
+            <label for="settlement_note" class="field-label">{{ t("approvals.note") }}</label>
+            <input id="settlement_note" name="note" type="text" class="input">
+          </div>
+        </form>
+
+        <form method="post" action="/admin/consignment/{{ arrangement.pk_consignment_id }}/close" data-confirm="{{ t('consignment.confirm_close') }}">
+          <button type="submit" class="btn-outline btn-sm"
+                  {% if arrangement.closed_dt %}disabled{% endif %}>
+            {{ t("consignment.close_arrangement") }}
+          </button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("consignment.settlements") }}</h2>
+    </div>
+    {% if settlements %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.reference") }}</th>
+              <th class="num">{{ t("consignment.net_owed") }}</th>
+              <th>{{ t("admin.recorded") }}</th>
+              <th>{{ t("approvals.note") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for settlement in settlements %}
+              <tr>
+                <td dir="ltr">{{ settlement.reference }}</td>
+                <td class="num">{{ money(settlement.net_owed_amt) }}</td>
+                <td>{{ datetime(settlement.settled_dt) if settlement.settled_dt else "" }}</td>
+                <td class="text-xs text-neutral-500">{{ settlement.note or "" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        <div class="state-panel border-0 bg-transparent py-8">
+          {{ icon.receipt(class="h-9 w-9 text-neutral-300") }}
+          <p class="state-panel__title">{{ t("consignment.settlements") }}</p>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

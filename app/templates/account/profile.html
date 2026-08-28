@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Edit their own submitted data (Part I §2.6).
+
+   Username and email are shown but not editable: §2.5 makes both unique
+   identifiers with normalisation rules, and email doubles as the verification
+   target — changing it here would leave an account verified against an address
+   its owner no longer controls.
+#}
+
+{% block title %}{{ t("account.profile") }} — {{ t("site.name") }}{% endblock %}
+{% block meta_robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <div class="mx-auto max-w-2xl">
+    {% include "account/_nav.html" %}
+
+    <h1>{{ t("account.profile") }}</h1>
+
+    {% if flash == "saved" %}
+      <div class="mt-4 flex items-center gap-2 rounded-card border border-success-100
+                  bg-success-50 p-3 text-sm text-success-700" role="status">
+        {{ icon.check_circle(class="h-4 w-4 shrink-0") }} <p>{{ t("common.saved") }}</p>
+      </div>
+    {% endif %}
+
+    {% if error %}
+      <div class="mt-4 flex items-start gap-2 rounded-card border border-danger-100
+                  bg-danger-50 p-3 text-sm text-danger-700" role="alert">
+        {{ icon.alert(class="h-4 w-4 shrink-0") }} <p>{{ error }}</p>
+      </div>
+    {% endif %}
+
+    {# --- Identity, read-only --- #}
+    <section class="card mt-6 p-5">
+      <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        <div>
+          <dt class="text-xs text-neutral-500">{{ t("auth.username") }}</dt>
+          <dd class="font-medium text-navy-900" dir="ltr">{{ user.username }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-neutral-500">{{ t("auth.email") }}</dt>
+          <dd class="flex flex-wrap items-center gap-2">
+            <span dir="ltr">{{ user.email }}</span>
+            {% if user.email_verified_flag %}
+              <span class="badge-success">{{ t("account.verified") }}</span>
+            {% else %}
+              <span class="badge-warning">{{ t("auth.not_verified") }}</span>
+            {% endif %}
+          </dd>
+        </div>
+      </dl>
+      {% if not user.email_verified_flag %}
+        {# §2.5 asks for a resend button beside the badge. #}
+        <form method="post" action="/account/resend-verification" class="mt-4">
+          <button type="submit" class="btn-outline btn-sm">
+            {{ icon.mail(class="h-4 w-4") }} {{ t("account.resend_verification") }}
+          </button>
+        </form>
+      {% endif %}
+      <p class="mt-4 text-xs text-neutral-500">{{ t("account.identity_locked") }}</p>
+    </section>
+
+    {# --- Editable --- #}
+    <form method="post" action="/account/profile" class="card mt-4 space-y-4 p-5">
+      {% if profile %}
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label for="first_name" class="field-label">{{ t("auth.first_name") }}</label>
+            <input id="first_name" type="text" name="first_name" required
+                   value="{{ profile.first_name }}" class="input">
+          </div>
+          <div>
+            <label for="last_name" class="field-label">{{ t("auth.last_name") }}</label>
+            <input id="last_name" type="text" name="last_name" required
+                   value="{{ profile.last_name }}" class="input">
+          </div>
+          <div>
+            <label for="second_name" class="field-label">
+              {{ t("auth.second_name") }}
+              <span class="field-optional">({{ t("auth.optional") }})</span>
+            </label>
+            <input id="second_name" type="text" name="second_name"
+                   value="{{ profile.second_name or '' }}" class="input">
+          </div>
+          <div>
+            <label for="third_name" class="field-label">
+              {{ t("auth.third_name") }}
+              <span class="field-optional">({{ t("auth.optional") }})</span>
+            </label>
+            <input id="third_name" type="text" name="third_name"
+                   value="{{ profile.third_name or '' }}" class="input">
+          </div>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-[8rem,1fr]">
+          <div>
+            <label for="phone_country_code" class="field-label">{{ t("auth.country_code") }}</label>
+            <input id="phone_country_code" type="text" name="phone_country_code" dir="ltr"
+                   value="{{ profile.phone_country_code }}" class="input">
+          </div>
+          <div>
+            <label for="phone_number" class="field-label">{{ t("auth.phone") }}</label>
+            <input id="phone_number" type="tel" name="phone_number" dir="ltr" required
+                   value="{{ profile.phone_number }}" class="input">
+          </div>
+        </div>
+      {% elif company %}
+        <div>
+          <dt class="text-xs text-neutral-500">{{ t("auth.company_name") }}</dt>
+          <dd class="font-medium text-navy-900">{{ company.company_name }}</dd>
+        </div>
+        <p class="text-sm text-neutral-500">{{ t("account.company_edit_hint") }}</p>
+      {% endif %}
+
+      {# Preferences follow the customer between devices rather than living in
+         a cookie that a cleared browser forgets (§1). #}
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label for="preferred_language" class="field-label">{{ t("language.label") }}</label>
+          <select id="preferred_language" name="preferred_language" class="input">
+            <option value="ar" {% if user.preferred_language == "ar" %}selected{% endif %}>
+              {{ t("language.ar") }}
+            </option>
+            <option value="en" {% if user.preferred_language == "en" %}selected{% endif %}>
+              {{ t("language.en") }}
+            </option>
+          </select>
+        </div>
+        <div>
+          <label for="preferred_currency" class="field-label">{{ t("currency.label") }}</label>
+          <select id="preferred_currency" name="preferred_currency" class="input">
+            <option value="JOD" {% if user.preferred_currency == "JOD" %}selected{% endif %}>
+              {{ t("currency.jod") }}
+            </option>
+            <option value="USD" {% if user.preferred_currency == "USD" %}selected{% endif %}>
+              {{ t("currency.usd") }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary">{{ t("common.save") }}</button>
+    </form>
+
+    {# --- Saved addresses (§2.6) --- #}
+    <section class="card mt-4 p-5">
+      <h2 class="text-sm font-semibold text-navy-900">{{ t("account.addresses") }}</h2>
+      {% if addresses %}
+        <ul class="mt-3 space-y-3">
+          {% for address in addresses %}
+            {% set country, province = places.get(address.pk_address_id, (None, None)) %}
+            <li class="flex items-start gap-3 border-b border-neutral-100 pb-3 last:border-0 last:pb-0">
+              {{ icon.pin(class="h-4 w-4 shrink-0 text-neutral-400 mt-0.5") }}
+              <div class="text-sm">
+                <p class="font-medium text-navy-900">
+                  {{ address.label or t("account.address") }}
+                  {% if address.is_default_flag %}
+                    <span class="badge-neutral">{{ t("account.default_address") }}</span>
+                  {% endif %}
+                </p>
+                <p class="text-neutral-600">
+                  {{ address.address_line }}, {{ address.city }}{% if province %},
+                    {{ localized(province) }}{% endif %}{% if country %},
+                    {{ localized(country) }}{% endif %}
+                </p>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="mt-3 text-sm text-neutral-500">{{ t("account.no_addresses") }}</p>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

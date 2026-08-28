@@ -1,0 +1,81 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("inventory.stock_takes") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% with title = t("inventory.stock_takes"), subtitle = t("inventory.stock_takes_purpose"),
+          back_href = "/admin/inventory", back_label = t("admin.inventory") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("inventory.new_stock_take") }}</h2>
+    </div>
+    <form method="post" action="/admin/inventory/stock-takes/new"
+          class="admin-panel__body flex flex-wrap items-end gap-3">
+      <div>
+        <label for="reference" class="field-label">{{ t("admin.reference") }}</label>
+        <input id="reference" name="reference" type="text" dir="ltr"
+               value="{{ suggested_reference }}" class="input h-9 min-h-0 py-0 text-sm">
+      </div>
+      <div>
+        <label for="stock_pool_id" class="field-label">{{ t("inventory.pool") }}</label>
+        <select id="stock_pool_id" name="stock_pool_id" class="input h-9 min-h-0 py-0 text-sm">
+          {% for pool in pools %}
+            <option value="{{ pool.pk_stock_pool_id }}">{{ localized(pool) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn-primary btn-sm">{{ t("inventory.open_count") }}</button>
+      <p class="w-full text-xs text-neutral-500">{{ t("inventory.freeze_hint") }}</p>
+    </form>
+  </section>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("inventory.stock_takes") }}</h2>
+    </div>
+    {% if stock_takes %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.reference") }}</th>
+              <th>{{ t("inventory.started") }}</th>
+              <th>{{ t("admin.status") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for take in stock_takes %}
+              <tr>
+                <td>
+                  <a href="/admin/inventory/stock-takes/{{ take.pk_stock_take_id }}"
+                     class="font-medium text-secondary-700 hover:underline" dir="ltr">
+                    {{ take.reference }}
+                  </a>
+                </td>
+                <td class="text-xs text-neutral-500">{{ datetime(take.started_dt) }}</td>
+                <td>
+                  {% if take.completed_dt %}
+                    <span class="badge-success">{{ t("inventory.closed") }}</span>
+                  {% else %}
+                    <span class="badge-warning">{{ t("inventory.counting") }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        <p class="text-sm text-neutral-500">{{ t("listing.no_results") }}</p>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

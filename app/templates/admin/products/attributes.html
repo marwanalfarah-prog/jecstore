@@ -1,0 +1,228 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("catalog.custom_details") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("catalog.custom_details"), subtitle = t("catalog.custom_details_purpose"),
+          back_href = "/admin/products", back_label = t("admin.products") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("catalog.custom_details") }}</h2>
+        <span class="badge-neutral">{{ num(rows | length) }}</span>
+      </div>
+
+      {% if rows %}
+        <div class="admin-table-wrap">
+          <table class="admin-table align-top">
+            <thead>
+              <tr>
+                <th>{{ t("catalog.name_en") }}</th>
+                <th>{{ t("catalog.name_ar") }}</th>
+                <th>{{ t("catalog.attribute_type") }}</th>
+                <th>{{ t("catalog.visibility") }}</th>
+                <th>{{ t("catalog.choices") }}</th>
+                <th class="num">{{ t("catalog.used") }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+                {% set attribute = row.attribute %}
+                {% set choices_ar = row.choices | map(attribute="value_ar") | join("\n") %}
+                {% set choices_en = row.choices | map(attribute="value_en") | join("\n") %}
+                <tr>
+                  <td>
+                    <input form="attribute-{{ attribute.pk_product_attribute_id }}"
+                           name="name_en" dir="ltr" value="{{ attribute.name_en }}"
+                           required class="input h-8 w-full min-h-0 py-0 text-sm"
+                           {% if not can_manage %}readonly{% endif %}>
+                    <input form="attribute-{{ attribute.pk_product_attribute_id }}"
+                           name="attribute_code" dir="ltr"
+                           value="{{ attribute.attribute_code }}"
+                           class="input mt-1 h-8 w-full min-h-0 py-0 text-xs"
+                           readonly>
+                  </td>
+                  <td>
+                    <input form="attribute-{{ attribute.pk_product_attribute_id }}"
+                           name="name_ar" value="{{ attribute.name_ar }}"
+                           required class="input h-8 w-full min-h-0 py-0 text-sm"
+                           {% if not can_manage %}readonly{% endif %}>
+                    <input form="attribute-{{ attribute.pk_product_attribute_id }}"
+                           type="number" name="sort_order" value="{{ attribute.sort_order }}"
+                           aria-label="{{ t('catalog.sort_order') }}"
+                           class="input mt-1 h-8 w-full min-h-0 py-0 text-xs"
+                           {% if not can_manage %}readonly{% endif %}>
+                  </td>
+                  <td>
+                    <span class="badge-neutral">
+                      {{ t("catalog.attribute_type_" ~ attribute.input_type) }}
+                    </span>
+                    <input form="attribute-{{ attribute.pk_product_attribute_id }}"
+                           type="hidden" name="input_type" value="{{ attribute.input_type }}">
+                  </td>
+                  <td>
+                    <select form="attribute-{{ attribute.pk_product_attribute_id }}"
+                            name="visibility"
+                            class="input h-8 min-h-0 py-0 text-xs"
+                            {% if not can_manage %}disabled{% endif %}>
+                      {% for option in visibility_options %}
+                        <option value="{{ option.value }}"
+                                {% if attribute.visibility == option.value %}selected{% endif %}>
+                          {{ t("catalog.attribute_visibility_" ~ option.value) }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <div class="mt-2 space-y-1">
+                      <label class="inline-flex items-center gap-1.5 text-2xs text-neutral-600">
+                        <input form="attribute-{{ attribute.pk_product_attribute_id }}"
+                               type="checkbox" name="is_filterable" value="1"
+                               {% if attribute.is_filterable_flag %}checked{% endif %}
+                               {% if not can_manage %}disabled{% endif %}
+                               class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                        <span>{{ t("catalog.filterable") }}</span>
+                      </label>
+                      <label class="inline-flex items-center gap-1.5 text-2xs text-neutral-600">
+                        <input form="attribute-{{ attribute.pk_product_attribute_id }}"
+                               type="checkbox" name="is_comparable" value="1"
+                               {% if attribute.is_comparable_flag %}checked{% endif %}
+                               {% if not can_manage %}disabled{% endif %}
+                               class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                        <span>{{ t("catalog.comparable") }}</span>
+                      </label>
+                    </div>
+                  </td>
+                  <td class="min-w-56">
+                    {% if attribute.input_type == "dropdown" %}
+                      <div class="grid gap-2 sm:grid-cols-2">
+                        <textarea form="attribute-{{ attribute.pk_product_attribute_id }}"
+                                  name="choices_ar" rows="4"
+                                  aria-label="{{ t('catalog.choices_ar') }}"
+                                  class="input text-xs"
+                                  {% if not can_manage %}readonly{% endif %}>{{ choices_ar }}</textarea>
+                        <textarea form="attribute-{{ attribute.pk_product_attribute_id }}"
+                                  name="choices_en" rows="4" dir="ltr"
+                                  aria-label="{{ t('catalog.choices_en') }}"
+                                  class="input text-xs"
+                                  {% if not can_manage %}readonly{% endif %}>{{ choices_en }}</textarea>
+                      </div>
+                    {% else %}
+                      <span class="text-sm text-neutral-400">-</span>
+                    {% endif %}
+                  </td>
+                  <td class="num">{{ num(row.usage_count) }}</td>
+                  <td class="text-end">
+                    {% if can_manage %}
+                      <div class="flex justify-end gap-1">
+                        <form id="attribute-{{ attribute.pk_product_attribute_id }}"
+                              method="post"
+                              action="/admin/products/attributes/{{ attribute.pk_product_attribute_id }}">
+                          <button type="submit" class="btn-outline btn-sm">{{ t("common.save") }}</button>
+                        </form>
+                        <form method="post"
+                              action="/admin/products/attributes/{{ attribute.pk_product_attribute_id }}/close"
+                              data-confirm="{{ t('catalog.confirm_retire_attribute', name=attribute.name_en, count=num(row.usage_count)) }}">
+                          <button type="submit" class="btn-ghost btn-sm text-danger-600">
+                            {{ t("catalog.retire") }}
+                          </button>
+                        </form>
+                      </div>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="admin-panel__body">
+          {% with empty_icon = "list", empty_title = t("catalog.no_custom_details"),
+                  empty_body = t("catalog.no_custom_details_hint") %}
+            {% include "admin/partials/empty.html" %}
+          {% endwith %}
+        </div>
+      {% endif %}
+    </section>
+
+    {% if can_manage %}
+      <aside>
+        <section class="admin-panel">
+          <div class="admin-panel__head">
+            <h2 class="admin-panel__title">{{ t("catalog.new_custom_detail") }}</h2>
+          </div>
+          <form method="post" action="/admin/products/attributes" class="admin-panel__body space-y-3">
+            <div>
+              <label for="name_en" class="field-label field-required">{{ t("catalog.name_en") }}</label>
+              <input id="name_en" name="name_en" class="input" dir="ltr" required>
+            </div>
+            <div>
+              <label for="name_ar" class="field-label field-required">{{ t("catalog.name_ar") }}</label>
+              <input id="name_ar" name="name_ar" class="input" required>
+            </div>
+            <div>
+              <label for="attribute_code" class="field-label">{{ t("catalog.attribute_code") }}</label>
+              <input id="attribute_code" name="attribute_code" class="input" dir="ltr"
+                     placeholder="{{ t('catalog.code_auto') }}">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="input_type" class="field-label">{{ t("catalog.attribute_type") }}</label>
+                <select id="input_type" name="input_type" class="input">
+                  {% for option in input_types %}
+                    <option value="{{ option.value }}">{{ t("catalog.attribute_type_" ~ option.value) }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label for="visibility" class="field-label">{{ t("catalog.visibility") }}</label>
+                <select id="visibility" name="visibility" class="input">
+                  {% for option in visibility_options %}
+                    <option value="{{ option.value }}">{{ t("catalog.attribute_visibility_" ~ option.value) }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" name="is_filterable" value="1"
+                       class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                <span>{{ t("catalog.filterable") }}</span>
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" name="is_comparable" value="1" checked
+                       class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                <span>{{ t("catalog.comparable") }}</span>
+              </label>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label for="choices_ar" class="field-label">{{ t("catalog.choices_ar") }}</label>
+                <textarea id="choices_ar" name="choices_ar" rows="4" class="input text-sm"></textarea>
+              </div>
+              <div>
+                <label for="choices_en" class="field-label">{{ t("catalog.choices_en") }}</label>
+                <textarea id="choices_en" name="choices_en" rows="4" dir="ltr" class="input text-sm"></textarea>
+              </div>
+            </div>
+            <div>
+              <label for="sort_order" class="field-label">{{ t("catalog.sort_order") }}</label>
+              <input id="sort_order" name="sort_order" type="number" class="input" value="0" dir="ltr">
+            </div>
+            <button type="submit" class="btn-primary btn-sm w-full">
+              {{ icon.plus(class="h-4 w-4") }} {{ t("catalog.new_custom_detail") }}
+            </button>
+          </form>
+        </section>
+      </aside>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

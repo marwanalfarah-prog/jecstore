@@ -1,0 +1,35 @@
+{# Empty state for a table or panel that has nothing to show.
+
+   Distinguishes the two cases staff constantly confuse, because an empty grey
+   box looks identical either way:
+
+     nothing exists yet   → say so, and offer the action that creates the first
+     nothing *matched*    → say so, and offer to clear the filters
+
+   Usage:
+     {% with empty_icon = "package", empty_title = t("listing.no_results"),
+             empty_body = t("listing.no_results_hint"),
+             empty_action_href = "/admin/products/new",
+             empty_action_label = t("catalog.new_product") %}
+       {% include "admin/partials/empty.html" %}
+     {% endwith %}
+#}
+{% import "partials/icons.html" as icon %}
+
+<div class="state-panel border-0 bg-transparent py-10">
+  {% if empty_icon == "receipt" %}{{ icon.receipt(class="h-10 w-10 text-neutral-300") }}
+  {% elif empty_icon == "package" %}{{ icon.package(class="h-10 w-10 text-neutral-300") }}
+  {% elif empty_icon == "wallet" %}{{ icon.wallet(class="h-10 w-10 text-neutral-300") }}
+  {% elif empty_icon == "user" %}{{ icon.user(class="h-10 w-10 text-neutral-300") }}
+  {% elif empty_icon == "shield" %}{{ icon.shield(class="h-10 w-10 text-neutral-300") }}
+  {% elif empty_icon == "cart" %}{{ icon.cart(class="h-10 w-10 text-neutral-300") }}
+  {% elif empty_icon == "search" %}{{ icon.search(class="h-10 w-10 text-neutral-300") }}
+  {% else %}{{ icon.list(class="h-10 w-10 text-neutral-300") }}{% endif %}
+
+  <p class="state-panel__title">{{ empty_title or t("listing.no_results") }}</p>
+  {% if empty_body %}<p class="state-panel__body">{{ empty_body }}</p>{% endif %}
+
+  {% if empty_action_href %}
+    <a href="{{ empty_action_href }}" class="btn-primary btn-sm mt-3">{{ empty_action_label }}</a>
+  {% endif %}
+</div>

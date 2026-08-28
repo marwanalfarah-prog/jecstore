@@ -1,0 +1,166 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.orders") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("admin.orders"), subtitle = t("admin.orders_purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <form method="get" class="admin-filters">
+    {% with owned = ["q", "status", "payment", "shipping", "page"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+    <div>
+      <label for="q" class="field-label">{{ t("orders.order_number") }}</label>
+      <input id="q" name="q" type="search" class="input w-44" dir="ltr"
+             value="{{ request.query_params.get('q', '') }}">
+    </div>
+    <div>
+      <label for="status" class="field-label">{{ t("admin.status") }}</label>
+      <select id="status" name="status" class="input w-40" data-autosubmit>
+        <option value="">{{ t("listing.all") }}</option>
+        <option value="open" {% if request.query_params.get('status') == 'open' %}selected{% endif %}>
+          {{ t("admin.filter_open") }}
+        </option>
+        {% for value in statuses %}
+          <option value="{{ value }}" {% if request.query_params.get('status') == value %}selected{% endif %}>
+            {{ t("orders.status_" ~ value) }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="payment" class="field-label">{{ t("orders.payment_status") }}</label>
+      <select id="payment" name="payment" class="input w-40" data-autosubmit>
+        <option value="">{{ t("listing.all") }}</option>
+        <option value="unpaid" {% if request.query_params.get('payment') == 'unpaid' %}selected{% endif %}>
+          {{ t("admin.filter_unpaid") }}
+        </option>
+        {% for value in payment_statuses %}
+          <option value="{{ value }}" {% if request.query_params.get('payment') == value %}selected{% endif %}>
+            {{ t("orders.payment_" ~ value) }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    {# The dashboard links here with ?shipping=pending, so the filter needs a
+       control. Without one the first press of "Filter" silently dropped it and
+       widened the list back to every order, while the tile still showed the
+       narrower count. #}
+    <label class="flex items-center gap-2 pb-1.5 text-sm text-neutral-700">
+      <input type="checkbox" name="shipping" value="pending" data-autosubmit
+             {% if request.query_params.get('shipping') == 'pending' %}checked{% endif %}
+             class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+      <span>{{ t("admin.needs_quote") }}</span>
+    </label>
+
+    <button type="submit" class="btn-secondary btn-sm">{{ t("listing.filters") }}</button>
+    {% if request.query_params.get('q') or request.query_params.get('status')
+          or request.query_params.get('payment') or request.query_params.get('shipping') %}
+      <a href="/admin/orders" class="btn-ghost btn-sm">{{ t("listing.clear_filters") }}</a>
+    {% endif %}
+
+    <div class="ms-auto flex flex-wrap items-center gap-2">
+      {# §2.2 wants every report exportable from where staff work, not only
+         from /admin/reports. #}
+      {% with report = "sales", query = "" %}
+        {% include "admin/partials/export_buttons.html" %}
+      {% endwith %}
+    </div>
+  </form>
+
+  <section class="admin-panel">
+    {% if orders %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("orders.order_number") }}</th>
+              <th>{{ t("admin.customer") }}</th>
+              <th>{{ t("admin.placed") }}</th>
+              <th>{{ t("admin.status") }}</th>
+              <th>{{ t("orders.payment_status") }}</th>
+              <th>{{ t("checkout.fulfillment") }}</th>
+              <th class="num">{{ t("cart.total") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in orders %}
+              {% set customer = customers.get(order.fk_user_id) %}
+              <tr>
+                <td>
+                  <a href="/admin/orders/{{ order.pk_order_id }}"
+                     class="font-medium text-secondary-700 hover:underline" dir="ltr">
+                    {{ order.order_number }}
+                  </a>
+                  {% if order.shipping_quote_pending_flag %}
+                    <span class="badge-warning ms-1">{{ t("admin.needs_quote") }}</span>
+                  {% endif %}
+                </td>
+                {# Who it is for. The list carried only a number, so answering
+                   "has this customer's order been prepared?" meant opening
+                   rows one at a time until one matched. #}
+                <td class="max-w-40 truncate">
+                  {% if customer %}
+                    {{ customer.username }}
+                  {% else %}
+                    <span class="text-neutral-400">{{ t("admin.guest") }}</span>
+                  {% endif %}
+                </td>
+                <td class="whitespace-nowrap text-xs text-neutral-500">{{ datetime(order.placed_dt) }}</td>
+                <td>
+                  {% set tone = {"placed":"badge-neutral","in_preparation":"badge-warning",
+                                 "partially_fulfilled":"badge-warning","complete":"badge-success",
+                                 "cancelled":"badge-danger"} %}
+                  <span class="{{ tone.get(order.status, 'badge-neutral') }}">
+                    {{ t("orders.status_" ~ order.status) }}
+                  </span>
+                </td>
+                <td>
+                  {% set ptone = {"paid":"badge-success","partially_paid":"badge-warning",
+                                  "not_paid":"badge-neutral","refunded":"badge-danger",
+                                  "partially_refunded":"badge-warning"} %}
+                  <span class="{{ ptone.get(order.payment_status, 'badge-neutral') }}">
+                    {{ t("orders.payment_" ~ order.payment_status) }}
+                  </span>
+                </td>
+                <td class="whitespace-nowrap text-xs">
+                  {{ t("checkout.pickup") if order.fulfillment_method == "pickup" else t("checkout.shipping") }}
+                </td>
+                <td class="num">{{ money(order.total_amt) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        {% if request.query_params.get('q') or request.query_params.get('status')
+              or request.query_params.get('payment') or request.query_params.get('shipping') %}
+          {% with empty_icon = "search", empty_title = t("listing.no_results"),
+                  empty_body = t("listing.no_results_hint"),
+                  empty_action_href = "/admin/orders",
+                  empty_action_label = t("listing.clear_filters") %}
+            {% include "admin/partials/empty.html" %}
+          {% endwith %}
+        {% else %}
+          {% with empty_icon = "receipt", empty_title = t("admin.no_orders_yet"),
+                  empty_body = t("admin.no_orders_yet_hint") %}
+            {% include "admin/partials/empty.html" %}
+          {% endwith %}
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  {% include "admin/partials/pagination.html" %}
+</div>
+{% endblock %}

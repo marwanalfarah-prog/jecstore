@@ -1,0 +1,23 @@
+{% if subscribed|default(false) %}
+  <div class="rounded-card bg-white/10 px-3 py-2 text-sm text-white">
+    {{ t("newsletter.subscribed") }}
+  </div>
+{% else %}
+  <form hx-post="/newsletter/subscribe"
+        hx-target="this"
+        hx-swap="outerHTML"
+        class="flex flex-col gap-2">
+    <div class="flex gap-2">
+      <label for="footer-newsletter-email" class="sr-only">{{ t("footer.newsletter_placeholder") }}</label>
+      <input id="footer-newsletter-email" type="email" name="email" required
+             value="{{ email|default('', true) }}"
+             class="input flex-1 border-white/20 bg-white/10 text-white placeholder:text-neutral-400
+                    focus:border-white/40 focus:ring-white/40"
+             placeholder="{{ t('footer.newsletter_placeholder') }}">
+      <button type="submit" class="btn-primary">{{ t("footer.subscribe") }}</button>
+    </div>
+    {% if newsletter_error %}
+      <p class="text-xs text-danger-100">{{ t(newsletter_error) }}</p>
+    {% endif %}
+  </form>
+{% endif %}

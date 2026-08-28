@@ -1,0 +1,97 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# The variance report §11 asks for: counted vs. the system quantity frozen when
+   the count opened, so later sales cannot move the target mid-count. #}
+
+{% block title %}{{ stock_take.reference }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("inventory.stock_take"), subtitle = t("inventory.stock_take_purpose"),
+          back_href = "/admin/inventory/stock-takes", back_label = t("inventory.stock_takes") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <form method="post" action="/admin/inventory/stock-takes/{{ stock_take.pk_stock_take_id }}/count">
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title" dir="ltr">{{ stock_take.reference }}</h2>
+        {% if stock_take.completed_dt %}
+          <span class="badge-success">{{ t("inventory.closed") }}</span>
+        {% else %}
+          <span class="badge-warning">{{ t("inventory.counting") }}</span>
+        {% endif %}
+      </div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.product") }}</th>
+              <th class="num">{{ t("inventory.system_qty") }}</th>
+              <th class="num">{{ t("inventory.counted_qty") }}</th>
+              <th class="num">{{ t("inventory.variance") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in report %}
+              <tr>
+                <td>
+                  {{ localized(row.product) if row.product else "—" }}
+                  <span class="block text-2xs text-neutral-400" dir="ltr">
+                    {{ row.variant.sku if row.variant else "" }}
+                  </span>
+                </td>
+                <td class="num text-neutral-500">{{ num(row.line.system_quantity) }}</td>
+                <td class="num">
+                  {% if stock_take.completed_dt %}
+                    {{ num(row.line.counted_quantity) if row.line.counted_quantity is not none else "—" }}
+                  {% else %}
+                    <input type="number" name="count_{{ row.line.pk_stock_take_line_id }}"
+                           value="{{ row.line.counted_quantity if row.line.counted_quantity is not none else '' }}"
+                           class="input h-8 w-20 min-h-0 py-0 text-end text-sm">
+                  {% endif %}
+                </td>
+                <td class="num">
+                  {% if row.variance is none %}
+                    <span class="text-neutral-400">—</span>
+                  {% elif row.variance == 0 %}
+                    <span class="badge-success">0</span>
+                  {% else %}
+                    <span class="{{ 'badge-danger' if row.variance < 0 else 'badge-warning' }}">
+                      {% if row.variance > 0 %}+{% endif %}{{ num(row.variance) }}
+                    </span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="4" class="py-6 text-center text-neutral-500">
+                  {{ t("listing.no_results") }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if not stock_take.completed_dt %}
+        <div class="admin-panel__body flex flex-wrap gap-2 border-t border-neutral-200">
+          <button type="submit" class="btn-outline btn-sm">{{ t("inventory.save_counts") }}</button>
+        </div>
+      {% endif %}
+    </section>
+  </form>
+
+  {% if not stock_take.completed_dt %}
+    <form method="post" action="/admin/inventory/stock-takes/{{ stock_take.pk_stock_take_id }}/close" data-confirm="{{ t('inventory.confirm_close_stock_take') }}">
+      <button type="submit" class="btn-primary btn-sm">{{ t("inventory.close_and_post") }}</button>
+      <p class="mt-2 text-xs text-neutral-500">{{ t("inventory.close_hint") }}</p>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

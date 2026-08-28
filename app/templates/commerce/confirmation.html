@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("checkout.confirmed_title") }} — {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-8 lg:py-14">
+  <div class="mx-auto max-w-2xl">
+
+    <div class="flex flex-col items-center text-center">
+      <span class="flex h-16 w-16 items-center justify-center rounded-full bg-success-50 text-success-600">
+        {{ icon.check_circle(class="h-9 w-9") }}
+      </span>
+      <h1 class="mt-4">{{ t("checkout.confirmed_title") }}</h1>
+      <p class="mt-2 text-neutral-600">{{ t("checkout.confirmed_body") }}</p>
+      <p class="mt-4 rounded-control bg-neutral-100 px-4 py-2 font-bold tabular text-navy-900"
+         dir="ltr">{{ order.order_number }}</p>
+    </div>
+
+    <div class="card mt-8 p-5 lg:p-6">
+      <dl class="grid gap-4 sm:grid-cols-2">
+        <div>
+          <dt class="text-sm text-neutral-500">{{ t("checkout.fulfillment") }}</dt>
+          <dd class="font-medium text-navy-900">
+            {{ t("checkout.pickup") if order.fulfillment_method == "pickup" else t("checkout.shipping") }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-sm text-neutral-500">{{ t("orders.payment_status") }}</dt>
+          <dd class="font-medium text-navy-900">{{ t("orders.payment_" ~ order.payment_status) }}</dd>
+        </div>
+        {% if order.ship_address_line %}
+          <div class="sm:col-span-2">
+            <dt class="text-sm text-neutral-500">{{ t("checkout.shipping_address") }}</dt>
+            <dd class="text-navy-900">
+              {{ order.ship_address_line }}, {{ order.ship_city }}
+              {%- if order.ship_province_name %}, {{ order.ship_province_name }}{% endif %}
+            </dd>
+          </div>
+        {% endif %}
+      </dl>
+
+      <ul class="mt-6 space-y-3 border-t border-neutral-200 pt-4">
+        {% for line in lines %}
+          <li class="flex items-start justify-between gap-3 text-sm">
+            <span class="min-w-0">
+              <span class="block text-navy-900">
+                {{ line.product_name_ar if lang == "ar" else line.product_name_en }}
+              </span>
+              {% set variant_label = line.variant_label_ar if lang == "ar" else line.variant_label_en %}
+              {% if variant_label %}
+                <span class="block text-xs text-neutral-500">{{ variant_label }}</span>
+              {% endif %}
+              <span class="text-neutral-500">&times;<span class="tabular">{{ num(line.quantity) }}</span></span>
+            </span>
+            <span class="tabular shrink-0 font-medium">{{ money(line.line_total_amt) }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+
+      <dl class="mt-4 space-y-2 border-t border-neutral-200 pt-4 text-sm">
+        <div class="flex justify-between gap-4">
+          <dt class="text-neutral-600">{{ t("cart.subtotal") }}</dt>
+          <dd class="tabular">{{ money(order.subtotal_amt) }}</dd>
+        </div>
+        {% if order.promocode_discount_amt %}
+          <div class="flex justify-between gap-4">
+            <dt class="text-neutral-600">{{ t("cart.discount") }}</dt>
+            <dd class="tabular text-success-600">&minus;{{ money(order.promocode_discount_amt) }}</dd>
+          </div>
+        {% endif %}
+        <div class="flex justify-between gap-4">
+          <dt class="text-neutral-600">{{ t("cart.shipping") }}</dt>
+          <dd class="tabular">
+            {% if order.shipping_quote_pending_flag %}
+              <span class="text-warning-700">{{ t("cart.shipping_on_contact") }}</span>
+            {% else %}
+              {{ money(order.shipping_amt) }}
+            {% endif %}
+          </dd>
+        </div>
+        <div class="flex justify-between gap-4 border-t border-neutral-200 pt-2">
+          <dt class="font-semibold text-navy-900">{{ t("cart.total") }}</dt>
+          <dd class="price">{{ money(order.total_amt) }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="mt-6 flex flex-wrap justify-center gap-3">
+      <a href="/account/orders" class="btn-primary">{{ t("header.orders") }}</a>
+      <a href="/categories" class="btn-outline">{{ t("cart.continue_shopping") }}</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

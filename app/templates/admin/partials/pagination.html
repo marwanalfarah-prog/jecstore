@@ -1,0 +1,44 @@
+{# Pagination that says how much there is, not just which page you are on.
+
+   "3 / 9" tells a member of staff nothing about whether the filter they just
+   applied narrowed anything down. "Showing 41–60 of 173" does, and it is the
+   difference between trusting the list and re-checking it by hand.
+
+   Usage — `page`, `total_pages` and `total` are already the names the admin
+   routes use, and `per_page` defaults to the 20 they share:
+
+     {% include "admin/partials/pagination.html" %}
+#}
+{% import "partials/icons.html" as icon %}
+
+{% set size = per_page | default(20) %}
+{% set first = ((page - 1) * size) + 1 %}
+{% set last = [page * size, total] | min %}
+
+{% if total %}
+  <nav class="admin-pager" aria-label="{{ t('listing.page') }}">
+    <p class="admin-pager__count">
+      {{ t("listing.showing_range", first=num(first), last=num(last), total=num(total)) }}
+    </p>
+
+    {% if total_pages > 1 %}
+      <div class="admin-pager__controls">
+        <a href="{{ url_with(page=1) }}" rel="first"
+           class="btn-outline btn-sm {% if page <= 1 %}pointer-events-none opacity-40{% endif %}"
+           aria-label="{{ t('listing.first_page') }}">&laquo;</a>
+        <a href="{{ url_with(page=page - 1) }}" rel="prev"
+           class="btn-outline btn-sm {% if page <= 1 %}pointer-events-none opacity-40{% endif %}"
+           aria-label="{{ t('listing.previous_page') }}">{{ icon.chevron_back(class="h-4 w-4") }}</a>
+
+        <span class="admin-pager__page">{{ num(page) }} / {{ num(total_pages) }}</span>
+
+        <a href="{{ url_with(page=page + 1) }}" rel="next"
+           class="btn-outline btn-sm {% if page >= total_pages %}pointer-events-none opacity-40{% endif %}"
+           aria-label="{{ t('listing.next_page') }}">{{ icon.chevron_forward(class="h-4 w-4") }}</a>
+        <a href="{{ url_with(page=total_pages) }}" rel="last"
+           class="btn-outline btn-sm {% if page >= total_pages %}pointer-events-none opacity-40{% endif %}"
+           aria-label="{{ t('listing.last_page') }}">&raquo;</a>
+      </div>
+    {% endif %}
+  </nav>
+{% endif %}

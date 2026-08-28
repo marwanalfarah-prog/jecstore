@@ -1,0 +1,141 @@
+{# Admin sidebar.
+
+   Every item is gated on the permission that its screen enforces, so an
+   Employee with order-prep access but no money-box access simply does not see
+   Money Boxes (Part I §2.2). Hiding is a courtesy — the routes still enforce
+   it; `can` is built by `permission_map()` in app/web/admin/deps.py.
+
+   Two rules keep it usable as the panel grows:
+
+   * Sub-screens are nested under their section and appear only while that
+     section is open. Stock takes, transfers, barcode labels and review
+     moderation were all built but reachable from nowhere in this nav — a
+     screen with no route to it is a screen nobody uses.
+   * A count sits beside the items that represent work waiting. The sidebar is
+     on every page, so it is where "what needs me" belongs; staff should not
+     have to visit a screen to discover it is empty.
+#}
+{% import "partials/icons.html" as icon %}
+
+{# Nav hrefs, longest first: /admin/inventory/shipments must win over
+   /admin/inventory, or a shipments page lights up two items at once. #}
+{% set nav_hrefs = [
+  "/admin/inventory/shipments", "/admin/inventory/stock-takes",
+  "/admin/inventory/transfers", "/admin/inventory/labels",
+  "/admin/content/announcements", "/admin/content/settings",
+  "/admin/content/emails", "/admin/content/shipping",
+  "/admin/products/reviews", "/admin/products/attributes", "/admin/products/tags",
+  "/admin/money-boxes", "/admin/promocodes", "/admin/categories",
+  "/admin/consignment", "/admin/inventory", "/admin/approvals", "/admin/products",
+  "/admin/sessions", "/admin/branches", "/admin/returns", "/admin/reports",
+  "/admin/content", "/admin/orders", "/admin/access", "/admin/audit",
+  "/admin/users", "/admin/search", "/admin",
+] %}
+
+{# First match wins, and the list above is ordered longest-first, so this
+   resolves to the most specific nav entry containing the current path.
+   A namespace rather than `{% break %}`: loopcontrols is not enabled. #}
+{% set ns = namespace(current="") %}
+{% for candidate in nav_hrefs %}
+  {% if not ns.current
+        and (request.url.path == candidate
+             or request.url.path.startswith(candidate ~ "/")) %}
+    {% set ns.current = candidate %}
+  {% endif %}
+{% endfor %}
+{% set current = ns.current %}
+
+{% macro glyph(name) %}
+  {%- if name == "grid" %}{{ icon.grid(class="h-4 w-4 shrink-0") }}
+  {%- elif name == "receipt" %}{{ icon.receipt(class="h-4 w-4 shrink-0") }}
+  {%- elif name == "package" %}{{ icon.package(class="h-4 w-4 shrink-0") }}
+  {%- elif name == "wallet" %}{{ icon.wallet(class="h-4 w-4 shrink-0") }}
+  {%- elif name == "shield" %}{{ icon.shield(class="h-4 w-4 shrink-0") }}
+  {%- elif name == "user" %}{{ icon.user(class="h-4 w-4 shrink-0") }}
+  {%- elif name == "pin" %}{{ icon.pin(class="h-4 w-4 shrink-0") }}
+  {%- elif name == "cart" %}{{ icon.cart(class="h-4 w-4 shrink-0") }}
+  {%- elif name == "info" %}{{ icon.info(class="h-4 w-4 shrink-0") }}
+  {%- elif name == "mail" %}{{ icon.mail(class="h-4 w-4 shrink-0") }}
+  {%- elif name == "star" %}{{ icon.heart(class="h-4 w-4 shrink-0") }}
+  {%- else %}{{ icon.list(class="h-4 w-4 shrink-0") }}{% endif -%}
+{% endmacro %}
+
+{# `count` is drawn only when there is something waiting: a nav full of grey
+   zeroes trains people to stop reading the numbers. #}
+{% macro item(href, label, icon_name, permission, count=0) %}
+  {% if not permission or can.get(permission) %}
+    <a href="{{ href }}"
+       class="admin-nav__link {% if current == href %}admin-nav__link--active{% endif %}"
+       {% if current == href %}aria-current="page"{% endif %}>
+      {{ glyph(icon_name) }}
+      <span class="truncate">{{ label }}</span>
+      {% if count %}<span class="admin-nav__count">{{ num(count) }}</span>{% endif %}
+    </a>
+  {% endif %}
+{% endmacro %}
+
+{% macro subitem(href, label, permission, parent) %}
+  {% if (not permission or can.get(permission)) and current in (parent, href) %}
+    <a href="{{ href }}"
+       class="admin-nav__sublink {% if current == href %}admin-nav__sublink--active{% endif %}"
+       {% if current == href %}aria-current="page"{% endif %}>
+      <span class="truncate">{{ label }}</span>
+    </a>
+  {% endif %}
+{% endmacro %}
+
+<div class="space-y-0.5">
+  {{ item("/admin", t("admin.dashboard"), "grid", None) }}
+  {{ item("/admin/approvals", t("admin.approvals"), "shield", None, pending_approvals) }}
+</div>
+
+<p class="admin-nav__heading">{{ t("admin.group_sales") }}</p>
+<div class="space-y-0.5">
+  {{ item("/admin/orders", t("admin.orders"), "receipt", "orders.view", nav_counts.orders_open) }}
+  {{ item("/admin/returns", t("admin.returns"), "package", "returns.view", nav_counts.returns_open) }}
+</div>
+
+<p class="admin-nav__heading">{{ t("admin.group_catalog") }}</p>
+<div class="space-y-0.5">
+  {{ item("/admin/products", t("admin.products"), "cart", "catalog.view") }}
+  {{ subitem("/admin/products/tags", t("catalog.tags"), "catalog.view", "/admin/products") }}
+  {{ subitem("/admin/products/attributes", t("catalog.custom_details"), "catalog.view", "/admin/products") }}
+  {{ item("/admin/products/reviews", t("catalog.reviews"), "star",
+          "catalog.moderate_reviews", nav_counts.reviews_pending) }}
+  {{ item("/admin/categories", t("admin.categories"), "grid", "catalog.view") }}
+  {{ item("/admin/promocodes", t("admin.promocodes"), "list", "content.manage_promocodes") }}
+</div>
+
+<p class="admin-nav__heading">{{ t("admin.group_inventory") }}</p>
+<div class="space-y-0.5">
+  {{ item("/admin/inventory", t("admin.inventory"), "package", "inventory.view") }}
+  {{ subitem("/admin/inventory/labels", t("inventory.labels"), "inventory.view", "/admin/inventory") }}
+  {{ item("/admin/inventory/shipments", t("admin.shipments"), "package", "inventory.view") }}
+  {{ item("/admin/inventory/transfers", t("inventory.transfers"), "package", "inventory.view") }}
+  {{ item("/admin/inventory/stock-takes", t("inventory.stock_takes"), "list", "inventory.view") }}
+  {{ item("/admin/consignment", t("admin.consignment"), "list", "consignment.view") }}
+</div>
+
+<p class="admin-nav__heading">{{ t("admin.group_money") }}</p>
+<div class="space-y-0.5">
+  {{ item("/admin/money-boxes", t("admin.money_boxes"), "wallet", "money_boxes.view") }}
+  {{ item("/admin/reports", t("admin.reports"), "list", "reports.view_financials") }}
+</div>
+
+<p class="admin-nav__heading">{{ t("admin.group_content") }}</p>
+<div class="space-y-0.5">
+  {{ item("/admin/content", t("admin.content"), "grid", "content.manage_homepage") }}
+  {{ item("/admin/content/announcements", t("content.announcements"), "info", "content.manage_announcements") }}
+  {{ item("/admin/content/settings", t("content.settings"), "grid", "content.manage_footer") }}
+  {{ item("/admin/content/emails", t("content.emails"), "mail", "content.manage_email_templates") }}
+  {{ item("/admin/content/shipping", t("content.shipping"), "package", "shipping.view") }}
+  {{ item("/admin/branches", t("admin.branches"), "pin", "content.manage_branches") }}
+</div>
+
+<p class="admin-nav__heading">{{ t("admin.group_admin") }}</p>
+<div class="space-y-0.5">
+  {{ item("/admin/users", t("admin.users"), "user", "users.view") }}
+  {{ item("/admin/access", t("admin.access"), "shield", "access.view") }}
+  {{ item("/admin/sessions", t("admin.sessions"), "user", "users.view_sessions") }}
+  {{ item("/admin/audit", t("admin.audit"), "list", "settings.view_audit_log") }}
+</div>

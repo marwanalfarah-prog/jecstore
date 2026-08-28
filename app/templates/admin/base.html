@@ -1,0 +1,158 @@
+{# Admin shell (Part I §17.6).
+
+   Deliberately *not* the storefront's warm, branded look. Staff run repetitive
+   daily tasks here, so this prioritises clarity and speed: a dense navy chrome,
+   tighter type, tables over cards, and the same status-badge language on every
+   screen so nobody relearns the UI module to module.
+
+   Still bilingual and still RTL-correct — §1 applies to the admin panel too.
+#}
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ t("admin.title") }}{% endblock %} — {{ t("site.name") }}</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="{{ static('img/favicon.svg') }}" type="image/svg+xml">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="{{ static('css/app.css') }}">
+
+  <script defer src="{{ static('js/htmx.min.js') }}"></script>
+  <script defer src="{{ static('js/alpine.min.js') }}"></script>
+  {# Confirmation, submit-once and auto-submitting filters. Deferred, and
+     every form still works without it (Part II §5). #}
+  <script defer src="{{ static('js/admin.js') }}"></script>
+  {% block head %}{% endblock %}
+</head>
+
+<body class="admin flex min-h-full flex-col bg-neutral-100">
+{% import "partials/icons.html" as icon %}
+
+  <a href="#admin-main" class="skip-link">{{ t("site.skip_to_content") }}</a>
+
+  {% if ctx.is_impersonating %}
+    {% include "partials/impersonation_banner.html" %}
+  {% endif %}
+
+  <div class="flex min-h-full flex-1" x-data="{ sidebar: false }">
+
+    {# --- Sidebar ------------------------------------------------------- #}
+    <div x-show="sidebar" x-cloak
+         class="fixed inset-0 z-30 bg-navy-950/50 lg:hidden"
+         @click="sidebar = false" aria-hidden="true"></div>
+
+    <aside class="fixed inset-y-0 start-0 z-40 flex w-64 flex-col bg-navy-900 text-neutral-300
+                  transition-transform lg:static lg:translate-x-0"
+           :class="sidebar ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full lg:!translate-x-0'"
+           aria-label="{{ t('admin.nav') }}">
+
+      <div class="flex h-14 shrink-0 items-center gap-2.5 border-b border-white/10 px-4">
+        {% with class = "h-8 w-auto" %}{% include "partials/logo.html" %}{% endwith %}
+        <span class="text-sm font-bold text-white">{{ t("admin.title") }}</span>
+        <button type="button" class="btn-icon ms-auto h-9 w-9 text-neutral-400 lg:hidden"
+                @click="sidebar = false" aria-label="{{ t('nav.close_menu') }}">
+          {{ icon.close(class="h-5 w-5") }}
+        </button>
+      </div>
+
+      <nav class="flex-1 overflow-y-auto p-3" @click="sidebar = false">
+        {% include "admin/partials/nav.html" %}
+      </nav>
+
+      {# Who am I signed in as, and what can I do? Staff share machines in a
+         branch; a name in the corner is how they notice they are about to act
+         as somebody else (§2.3). #}
+      <div class="border-t border-white/10 p-3">
+        <div class="mb-2 flex items-center gap-2 px-3 py-1.5">
+          <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full
+                       bg-white/10 text-2xs font-bold uppercase text-white">
+            {{ ctx.user.username[:2] }}
+          </span>
+          <span class="min-w-0">
+            <span class="block truncate text-xs font-semibold text-white">{{ ctx.user.username }}</span>
+            {% if ctx.user.role %}
+              <span class="block truncate text-2xs text-neutral-400">{{ localized(ctx.user.role) }}</span>
+            {% endif %}
+          </span>
+        </div>
+        <a href="/" class="admin-nav__link">{{ t("admin.view_store") }}</a>
+        <form method="post" action="/auth/logout">
+          <button type="submit" class="admin-nav__link w-full text-start">
+            {{ t("header.logout") }}
+          </button>
+        </form>
+      </div>
+    </aside>
+
+    {# --- Main ---------------------------------------------------------- #}
+    <div class="flex min-w-0 flex-1 flex-col">
+
+      <header class="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3
+                     border-b border-neutral-200 bg-white px-4 shadow-sm">
+        <button type="button" class="btn-icon -ms-2 lg:hidden" @click="sidebar = true"
+                aria-label="{{ t('nav.menu') }}">
+          {{ icon.menu() }}
+        </button>
+
+        <h1 class="truncate text-base font-semibold text-navy-900">
+          {% block heading %}{{ self.title() }}{% endblock %}
+        </h1>
+
+        {# One box that reaches any order, product, SKU or customer without
+           first guessing which module owns it. The single biggest time cost in
+           the old panel was navigating to the screen before searching it. #}
+        <form method="get" action="/admin/search"
+              class="hidden min-w-0 items-center md:ms-auto md:flex" role="search">
+          <label for="admin-q" class="sr-only">{{ t("admin.quick_search") }}</label>
+          <div class="relative">
+            {{ icon.search(class="pointer-events-none absolute inset-y-0 start-2 my-auto h-4 w-4 text-neutral-400") }}
+            <input id="admin-q" name="q" type="search" autocomplete="off"
+                   value="{{ request.query_params.get('q', '') if request.url.path == '/admin/search' else '' }}"
+                   placeholder="{{ t('admin.quick_search_hint') }}"
+                   class="input h-9 w-44 min-h-0 py-0 ps-8 text-sm lg:w-64">
+          </div>
+        </form>
+
+        <div class="ms-auto flex items-center gap-2 md:ms-0">
+          <a href="/admin/search" class="btn-icon md:hidden"
+             aria-label="{{ t('admin.quick_search') }}">
+            {{ icon.search() }}
+          </a>
+
+          {% if pending_approvals %}
+            {# The queue is the one thing staff must not miss (§2.2.1). #}
+            <a href="/admin/approvals" class="relative btn-icon"
+               aria-label="{{ t('admin.approvals') }}" title="{{ t('admin.approvals') }}">
+              {{ icon.shield() }}
+              <span class="absolute -end-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center
+                           rounded-full bg-primary-600 px-1 text-2xs font-bold text-white">
+                {{ num(pending_approvals) }}
+              </span>
+            </a>
+          {% endif %}
+
+          <a href="{{ url_with(lang=ctx.other_language) }}"
+             class="btn-ghost btn-sm" hreflang="{{ ctx.other_language }}">
+            {{ t("language." ~ ctx.other_language) }}
+          </a>
+        </div>
+      </header>
+
+      <main id="admin-main" class="min-w-0 flex-1 p-4 lg:p-6">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <div id="toast-region"
+       class="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4"
+       role="status" aria-live="polite"></div>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

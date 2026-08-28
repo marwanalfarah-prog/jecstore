@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("header.wishlist") }} - {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <h1>{{ t("header.wishlist") }}</h1>
+    <a href="/account" class="btn-outline btn-sm">{{ t("header.my_account") }}</a>
+  </div>
+
+  <div class="mt-6">
+    {% with empty_title=t("account.empty_wishlist"), empty_body=t("cart.empty_hint") %}
+      {% include "partials/product_grid.html" %}
+    {% endwith %}
+  </div>
+</div>
+{% endblock %}

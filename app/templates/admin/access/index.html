@@ -1,0 +1,246 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.access") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("admin.access"), subtitle = t("access.purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("access.grant_permission") }}</h2>
+    </div>
+    <form method="post" action="/admin/access/grants" class="admin-panel__body space-y-4"
+          x-data="{ scope: 'role', checkerRows: 1, loginRows: 1 }">
+      <div class="grid gap-3 lg:grid-cols-4">
+        <div class="lg:col-span-2">
+          <label for="permission_id" class="field-label">{{ t("access.permission") }}</label>
+          <select id="permission_id" name="permission_id" class="input">
+            {% for permission in permissions %}
+              <option value="{{ permission.pk_permission_id }}">
+                {{ permission.module_code }}.{{ permission.action_code }} - {{ localized(permission) }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="grant_scope" class="field-label">{{ t("access.grant_scope") }}</label>
+          <select id="grant_scope" name="grant_scope" class="input" x-model="scope">
+            <option value="role">{{ t("access.scope_role") }}</option>
+            <option value="user">{{ t("access.scope_user") }}</option>
+          </select>
+        </div>
+        <div x-show="scope === 'role'">
+          <label for="role_id" class="field-label">{{ t("access.role") }}</label>
+          <select id="role_id" name="role_id" class="input">
+            {% for role in roles %}
+              <option value="{{ role.pk_role_id }}">{{ localized(role) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div x-show="scope === 'user'">
+          <label for="user_id" class="field-label">{{ t("access.user") }}</label>
+          <select id="user_id" name="user_id" class="input">
+            {% for user in users %}
+              <option value="{{ user.pk_user_id }}">{{ user.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="approval_mode" class="field-label">{{ t("access.approval_mode") }}</label>
+          <select id="approval_mode" name="approval_mode" class="input">
+            {% for mode in modes %}
+              <option value="{{ mode }}">{{ t("access.mode_" ~ mode) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="required_approvals" class="field-label">{{ t("access.required_approvals") }}</label>
+          <input id="required_approvals" name="required_approvals" type="number" min="1" value="1" class="input" dir="ltr">
+        </div>
+      </div>
+
+      <div class="grid gap-4 lg:grid-cols-2">
+        <div class="rounded-control border border-neutral-200 p-3">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <p class="field-label mb-0">{{ t("access.checkers") }}</p>
+            <button type="button" class="btn-ghost btn-sm" @click="checkerRows = checkerRows + 1">
+              {{ icon.plus(class="h-4 w-4") }} {{ t("access.add_checker") }}
+            </button>
+          </div>
+          <input type="hidden" name="checker_count" value="1" :value="checkerRows">
+          <template x-for="i in checkerRows" :key="'checker-' + i">
+            <div class="mb-2 grid gap-2 sm:grid-cols-3">
+              <select :name="'checker_scope_' + i" class="input h-9 min-h-0 py-0 text-sm">
+                <option value="role">{{ t("access.scope_role") }}</option>
+                <option value="user">{{ t("access.scope_user") }}</option>
+              </select>
+              <select :name="'checker_role_id_' + i" class="input h-9 min-h-0 py-0 text-sm">
+                <option value="">{{ t("access.role") }}</option>
+                {% for role in staff_roles %}
+                  <option value="{{ role.pk_role_id }}">{{ localized(role) }}</option>
+                {% endfor %}
+              </select>
+              <select :name="'checker_user_id_' + i" class="input h-9 min-h-0 py-0 text-sm">
+                <option value="">{{ t("access.user") }}</option>
+                {% for user in users %}
+                  <option value="{{ user.pk_user_id }}">{{ user.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </template>
+        </div>
+
+        <div class="rounded-control border border-neutral-200 p-3">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <p class="field-label mb-0">{{ t("access.login_as_scopes") }}</p>
+            <button type="button" class="btn-ghost btn-sm" @click="loginRows = loginRows + 1">
+              {{ icon.plus(class="h-4 w-4") }} {{ t("access.add_scope") }}
+            </button>
+          </div>
+          <input type="hidden" name="login_scope_count" value="1" :value="loginRows">
+          <template x-for="i in loginRows" :key="'login-' + i">
+            <div class="mb-2 grid gap-2 sm:grid-cols-3">
+              <select :name="'login_scope_' + i" class="input h-9 min-h-0 py-0 text-sm">
+                <option value="role">{{ t("access.scope_role") }}</option>
+                <option value="user">{{ t("access.scope_user") }}</option>
+              </select>
+              <select :name="'login_scope_role_id_' + i" class="input h-9 min-h-0 py-0 text-sm">
+                <option value="">{{ t("access.role") }}</option>
+                {% for role in roles %}
+                  <option value="{{ role.pk_role_id }}">{{ localized(role) }}</option>
+                {% endfor %}
+              </select>
+              <select :name="'login_scope_user_id_' + i" class="input h-9 min-h-0 py-0 text-sm">
+                <option value="">{{ t("access.user") }}</option>
+                {% for user in users %}
+                  <option value="{{ user.pk_user_id }}">{{ user.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary btn-sm">{{ t("access.grant_permission") }}</button>
+    </form>
+  </section>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("access.active_grants") }}</h2>
+      <span class="badge-neutral">{{ num(grants|length) }}</span>
+    </div>
+    {% if grants %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("access.permission") }}</th>
+              <th>{{ t("access.target") }}</th>
+              <th>{{ t("admin.status") }}</th>
+              <th>{{ t("access.approval_mode") }}</th>
+              <th>{{ t("access.checkers") }}</th>
+              <th>{{ t("access.login_as_scopes") }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for grant in grants %}
+              {% set permission = grant.permission %}
+              <tr>
+                <td>
+                  <span class="font-medium text-navy-900">{{ localized(permission) }}</span>
+                  <span class="block text-2xs text-neutral-400" dir="ltr">
+                    {{ permission.module_code }}.{{ permission.action_code }}
+                  </span>
+                </td>
+                <td>
+                  {% if grant.grant_scope == "role" %}
+                    {{ t("access.scope_role") }}: {{ localized(role_map.get(grant.fk_role_id)) }}
+                  {% else %}
+                    {{ t("access.scope_user") }}: {{ user_map.get(grant.fk_user_id).username if user_map.get(grant.fk_user_id) else "..." }}
+                  {% endif %}
+                </td>
+                <td>
+                  {% if grant.granted_flag %}
+                    <span class="badge-success">{{ t("access.granted") }}</span>
+                  {% else %}
+                    <span class="badge-danger">{{ t("access.denied") }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <form method="post" action="/admin/access/grants/mode" class="flex min-w-56 items-center gap-2">
+                    <input type="hidden" name="permission_id" value="{{ grant.fk_permission_id }}">
+                    <input type="hidden" name="grant_scope" value="{{ grant.grant_scope }}">
+                    <input type="hidden" name="role_id" value="{{ grant.fk_role_id or '' }}">
+                    <input type="hidden" name="user_id" value="{{ grant.fk_user_id or '' }}">
+                    <input type="hidden" name="granted" value="{{ 1 if grant.granted_flag else 0 }}">
+                    <input type="hidden" name="checker_count" value="0">
+                    <input type="hidden" name="login_scope_count" value="0">
+                    <select name="approval_mode" class="input h-8 min-h-0 py-0 text-xs">
+                      {% for mode in modes %}
+                        <option value="{{ mode }}" {% if grant.approval_mode == mode %}selected{% endif %}>
+                          {{ t("access.mode_" ~ mode) }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <input name="required_approvals" type="number" min="1"
+                           value="{{ grant.required_approvals }}"
+                           class="input h-8 min-h-0 w-16 py-0 text-xs" dir="ltr">
+                    <button type="submit" class="btn-ghost btn-sm px-2" aria-label="{{ t('common.save') }}">
+                      {{ icon.check(class="h-4 w-4") }}
+                    </button>
+                  </form>
+                </td>
+                <td class="text-xs text-neutral-500">
+                  {% for checker in grant.checkers if checker.scd_active_flag %}
+                    <span class="block">
+                      {% if checker.checker_scope == "role" %}
+                        {{ localized(role_map.get(checker.fk_role_id)) }}
+                      {% else %}
+                        {{ user_map.get(checker.fk_user_id).username if user_map.get(checker.fk_user_id) else "..." }}
+                      {% endif %}
+                    </span>
+                  {% else %}
+                    <span>{{ t("access.fallback_checkers") }}</span>
+                  {% endfor %}
+                </td>
+                <td class="text-xs text-neutral-500">
+                  {% for scope in grant.login_as_scopes if scope.scd_active_flag %}
+                    <span class="block">
+                      {% if scope.target_scope == "role" %}
+                        {{ localized(role_map.get(scope.fk_target_role_id)) }}
+                      {% else %}
+                        {{ user_map.get(scope.fk_target_user_id).username if user_map.get(scope.fk_target_user_id) else "..." }}
+                      {% endif %}
+                    </span>
+                  {% else %}
+                    <span>...</span>
+                  {% endfor %}
+                </td>
+                <td class="text-end">
+                  <form method="post" action="/admin/access/grants/revoke" data-confirm="{{ t('access.confirm_revoke') }}">
+                    <input type="hidden" name="permission_id" value="{{ grant.fk_permission_id }}">
+                    <input type="hidden" name="grant_scope" value="{{ grant.grant_scope }}">
+                    <input type="hidden" name="role_id" value="{{ grant.fk_role_id or '' }}">
+                    <input type="hidden" name="user_id" value="{{ grant.fk_user_id or '' }}">
+                    <button type="submit" class="btn-outline btn-sm">{{ t("access.revoke") }}</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body text-sm text-neutral-500">{{ t("access.no_grants") }}</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

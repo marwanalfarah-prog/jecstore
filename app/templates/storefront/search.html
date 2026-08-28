@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("search.title") }} - {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1>{{ t("search.title") }}</h1>
+      {% if result.q %}
+        <p class="mt-1 text-sm text-neutral-500">
+          {{ t("search.results_for", q=result.q, count=num(result.total)) }}
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <form action="/search" method="get" class="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_12rem_10rem_auto]">
+    <label class="sr-only" for="search-q">{{ t("header.search") }}</label>
+    <input id="search-q" type="search" name="q" value="{{ result.q }}" class="input"
+           placeholder="{{ t('header.search_placeholder') }}">
+
+    <label class="sr-only" for="search-sort">{{ t("listing.sort") }}</label>
+    <select id="search-sort" name="sort" class="input">
+      {% for option in sort_options %}
+        <option value="{{ option }}" {% if result.sort == option %}selected{% endif %}>
+          {{ t("listing.sort_" ~ option) }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <label class="sr-only" for="search-page-size">{{ t("listing.show") }}</label>
+    <select id="search-page-size" name="per_page" class="input">
+      {% for size in page_sizes %}
+        <option value="{{ size }}" {% if result.page_size == size %}selected{% endif %}>
+          {{ num(size) }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="btn-secondary">
+      {{ icon.search(class="h-4 w-4") }} {{ t("header.search") }}
+    </button>
+  </form>
+
+  <div class="mt-6">
+    {% with empty_title=t("search.empty_title"), empty_body=t("listing.no_results_hint") %}
+      {% include "partials/product_grid.html" %}
+    {% endwith %}
+  </div>
+
+  {% if total_pages > 1 %}
+    <nav class="mt-8 flex items-center justify-center gap-2" aria-label="{{ t('listing.page') }}">
+      {% if result.page > 1 %}
+        <a href="{{ url_with(page=result.page - 1) }}" class="btn-outline btn-sm">
+          {{ icon.chevron_back(class="h-4 w-4") }} {{ t("common.previous") }}
+        </a>
+      {% endif %}
+      <span class="rounded-control bg-white px-4 py-2 text-sm font-semibold text-neutral-700">
+        {{ num(result.page) }} / {{ num(total_pages) }}
+      </span>
+      {% if result.page < total_pages %}
+        <a href="{{ url_with(page=result.page + 1) }}" class="btn-outline btn-sm">
+          {{ t("common.next") }} {{ icon.chevron_forward(class="h-4 w-4") }}
+        </a>
+      {% endif %}
+    </nav>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{# Export controls for any report (Part I §2.2).
+
+   Usage:
+     {% with report = "sales", query = "start=2026-01-01&end=2026-01-31" %}
+       {% include "admin/partials/export_buttons.html" %}
+     {% endwith %}
+
+   PDF is offered only where WeasyPrint can actually render. Where it cannot,
+   the print view takes its place — a browser's Save-as-PDF produces correct
+   RTL output, so the capability is never simply absent.
+
+   Gated here rather than at each call site: §2.2 makes `reports.export` a
+   permission of its own, separate from `reports.view`, and the buttons are now
+   included from six screens. One gate in the partial is one gate to get right.
+#}
+{% import "partials/icons.html" as icon %}
+{% set qs = ("?" ~ query) if query else "" %}
+
+{% if can.get("reports.export") %}
+<div class="flex flex-wrap items-center gap-1">
+  <span class="text-xs text-neutral-500">{{ t("exports.export") }}:</span>
+
+  <a href="/admin/exports/{{ report }}.csv{{ qs }}" class="btn-outline btn-sm">
+    {{ t("exports.csv") }}
+  </a>
+  <a href="/admin/exports/{{ report }}.xlsx{{ qs }}" class="btn-outline btn-sm">
+    {{ t("exports.excel") }}
+  </a>
+
+  {% if pdf_available %}
+    <a href="/admin/exports/{{ report }}.pdf{{ qs }}" class="btn-outline btn-sm">
+      {{ t("exports.pdf") }}
+    </a>
+  {% endif %}
+
+  <a href="/admin/exports/{{ report }}.html{{ qs }}" target="_blank" rel="noopener"
+     class="btn-ghost btn-sm"
+     {% if not pdf_available %}title="{{ t('exports.pdf_unavailable') }}"{% endif %}>
+    {{ icon.receipt(class="h-4 w-4") }} {{ t("exports.print_view") }}
+  </a>
+</div>
+{% endif %}

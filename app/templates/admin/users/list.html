@@ -1,0 +1,135 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.users") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("admin.users"), subtitle = t("users.purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("users.create_staff") }}</h2>
+    </div>
+    <form method="post" action="/admin/users/new" class="admin-panel__body grid gap-3 lg:grid-cols-6">
+      <div>
+        <label for="username" class="field-label">{{ t("auth.username") }}</label>
+        <input id="username" name="username" class="input" required dir="ltr">
+      </div>
+      <div class="lg:col-span-2">
+        <label for="email" class="field-label">{{ t("auth.email") }}</label>
+        <input id="email" name="email" type="email" class="input" required dir="ltr">
+      </div>
+      <div>
+        <label for="role_id" class="field-label">{{ t("access.role") }}</label>
+        <select id="role_id" name="role_id" class="input">
+          {% for role in staff_roles %}
+            <option value="{{ role.pk_role_id }}">{{ localized(role) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="preferred_language" class="field-label">{{ t("language.label") }}</label>
+        <select id="preferred_language" name="preferred_language" class="input">
+          {% for language in languages %}
+            <option value="{{ language }}">{{ t("language." ~ language) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="password" class="field-label">{{ t("auth.password") }}</label>
+        <input id="password" name="password" type="password" class="input" required>
+      </div>
+      <div class="lg:col-span-6">
+        <button type="submit" class="btn-primary btn-sm">
+          {{ icon.plus(class="h-4 w-4") }} {{ t("users.create_staff") }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("admin.users") }}</h2>
+    </div>
+    <form method="get" class="admin-panel__body admin-filters border-b border-neutral-200">
+    {% with owned = ["q", "role", "page"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+      <div>
+        <label for="q" class="field-label">{{ t("common.search") }}</label>
+        <input id="q" name="q" class="input h-9 min-h-0 py-0 text-sm"
+               value="{{ request.query_params.get('q', '') }}">
+      </div>
+      <div>
+        <label for="role" class="field-label">{{ t("access.role") }}</label>
+        <select id="role" name="role" class="input h-9 min-h-0 py-0 text-sm">
+          <option value="">{{ t("listing.all") }}</option>
+          {% for role in roles %}
+            <option value="{{ role.pk_role_id }}"
+                    {% if request.query_params.get('role') == (role.pk_role_id|string) %}selected{% endif %}>
+              {{ localized(role) }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn-secondary btn-sm">{{ t("listing.filters") }}</button>
+      <a href="/admin/users" class="btn-ghost btn-sm">{{ t("listing.clear_filters") }}</a>
+    </form>
+
+    {% if users %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("auth.username") }}</th>
+              <th>{{ t("auth.email") }}</th>
+              <th>{{ t("access.role") }}</th>
+              <th>{{ t("admin.status") }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+              <tr>
+                <td class="font-medium text-navy-900">{{ user.username }}</td>
+                <td dir="ltr" class="text-xs text-neutral-500">{{ user.email }}</td>
+                <td>{{ localized(user.role) if user.role else "..." }}</td>
+                <td>
+                  {% if user.is_active_flag %}
+                    <span class="badge-success">{{ t("users.active") }}</span>
+                  {% else %}
+                    <span class="badge-danger">{{ t("users.inactive") }}</span>
+                  {% endif %}
+                  {% if not user.email_verified_flag %}
+                    <span class="badge-warning">{{ t("auth.not_verified") }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <div class="flex flex-wrap justify-end gap-2">
+                    {% if user.is_active_flag %}
+                      <form method="post" action="/admin/users/{{ user.pk_user_id }}/login-as">
+                        <button type="submit" class="btn-outline btn-sm">{{ t("users.login_as") }}</button>
+                      </form>
+                      <form method="post" action="/admin/users/{{ user.pk_user_id }}/deactivate" data-confirm="{{ t('users.confirm_deactivate') }}">
+                        <button type="submit" class="btn-outline btn-sm">{{ t("users.deactivate") }}</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body text-sm text-neutral-500">{{ t("users.no_users") }}</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("nav.all_categories") }} — {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <h1>{{ t("nav.all_categories") }}</h1>
+
+  {% if categories %}
+    <div class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      {% for category in categories %}
+        <a href="{{ category_url(category) }}"
+           class="card group flex flex-col items-center gap-3 p-5 text-center
+                  transition hover:border-primary-200 hover:shadow-card-hover">
+          {% if category.image_path %}
+            <img src="{{ media(category.image_path) }}" alt=""
+                 class="h-20 w-20 object-contain" loading="lazy">
+          {% else %}
+            <span class="flex h-20 w-20 items-center justify-center rounded-full
+                         bg-primary-50 text-primary-600">
+              {{ icon.grid(class="h-8 w-8") }}
+            </span>
+          {% endif %}
+          <span class="font-medium text-navy-900 group-hover:text-primary-700">
+            {{ localized(category) }}
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="state-panel mt-6">
+      {{ icon.grid(class="h-10 w-10 text-neutral-300") }}
+      <p class="state-panel__title">{{ t("listing.no_results") }}</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

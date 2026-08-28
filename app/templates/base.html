@@ -1,0 +1,68 @@
+{# The shell every storefront page extends.
+
+   `lang` and `dir` are set from the request context, so the whole document
+   mirrors from one attribute rather than from per-component overrides
+   (Part I §1, §17).
+#}
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}{{ t("site.name") }} — {{ t("site.tagline") }}{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}{{ t("site.tagline") }}{% endblock %}">
+  {# Pages carrying a token or a customer's own data override this to noindex.
+     robots.txt asks crawlers not to fetch them; this is what stops a page that
+     leaked into an index from staying there (Part I §16). #}
+  {% block meta_robots %}{% endblock %}
+
+  <link rel="icon" href="{{ static('img/favicon.svg') }}" type="image/svg+xml">
+  <meta name="theme-color" content="#E63950">
+
+  {# Bilingual SEO: each language advertises the other (Part I §16). #}
+  <link rel="alternate" hreflang="ar" href="{{ url_with(lang='ar') }}">
+  <link rel="alternate" hreflang="en" href="{{ url_with(lang='en') }}">
+  {% block canonical %}{% endblock %}
+
+  <meta property="og:site_name" content="{{ t('site.name') }}">
+  <meta property="og:locale" content="{{ 'ar_JO' if lang == 'ar' else 'en_US' }}">
+  {% block og %}{% endblock %}
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+
+  <link rel="stylesheet" href="{{ static('css/app.css') }}">
+
+  <script defer src="{{ static('js/htmx.min.js') }}"></script>
+  <script defer src="{{ static('js/alpine.min.js') }}"></script>
+  {% block head %}{% endblock %}
+</head>
+
+<body class="flex min-h-full flex-col">
+  <a href="#main" class="skip-link">{{ t("site.skip_to_content") }}</a>
+
+  {# Never ambiguous which account is acting (Part I §2.2.2). #}
+  {% if ctx.is_impersonating %}
+    {% include "partials/impersonation_banner.html" %}
+  {% endif %}
+
+  {% include "partials/announcement_bar.html" %}
+  {% include "partials/header.html" %}
+
+  <main id="main" class="flex-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% include "partials/footer.html" %}
+
+  {# Live region for add-to-cart and similar confirmations: announced to
+     screen readers, and the anchor HTMX swaps toasts into. #}
+  <div id="toast-region"
+       class="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4"
+       role="status" aria-live="polite"></div>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,134 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("catalog.tags") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("catalog.tags"), subtitle = t("catalog.tags_purpose"),
+          back_href = "/admin/products", back_label = t("admin.products") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("catalog.tags") }}</h2>
+        <span class="badge-neutral">{{ num(rows | length) }}</span>
+      </div>
+
+      {% if rows %}
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>{{ t("catalog.name_en") }}</th>
+                <th>{{ t("catalog.name_ar") }}</th>
+                <th>{{ t("catalog.slug") }}</th>
+                <th class="num">{{ t("admin.products") }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+                {# Each row is its own edit form: renaming a tag is the common
+                   case and a separate edit screen for two fields would cost a
+                   page load in each direction. #}
+                <tr>
+                  <td>
+                    <input form="tag-{{ row.tag.pk_tag_id }}" name="name_en" dir="ltr"
+                           value="{{ row.tag.name_en }}" required
+                           class="input h-8 w-full min-h-0 py-0 text-sm"
+                           {% if not can_manage %}readonly{% endif %}>
+                  </td>
+                  <td>
+                    <input form="tag-{{ row.tag.pk_tag_id }}" name="name_ar"
+                           value="{{ row.tag.name_ar }}" required
+                           class="input h-8 w-full min-h-0 py-0 text-sm"
+                           {% if not can_manage %}readonly{% endif %}>
+                  </td>
+                  <td>
+                    <input form="tag-{{ row.tag.pk_tag_id }}" name="slug" dir="ltr"
+                           value="{{ row.tag.slug }}"
+                           class="input h-8 w-full min-h-0 py-0 text-sm"
+                           {% if not can_manage %}readonly{% endif %}>
+                  </td>
+                  <td class="num">
+                    {% if row.product_count %}
+                      <a href="/tag/{{ row.tag.pk_tag_id }}/{{ row.tag.slug }}"
+                         target="_blank" rel="noopener" class="link">{{ num(row.product_count) }}</a>
+                    {% else %}
+                      {# A tag on nothing is a typo or an unfinished job, and
+                         its /tag page is an empty shop window. Say so. #}
+                      <span class="badge-warning" title="{{ t('catalog.tag_unused_hint') }}">
+                        {{ t("catalog.tag_unused") }}
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    {% if can_manage %}
+                      <div class="flex justify-end gap-1">
+                        <form id="tag-{{ row.tag.pk_tag_id }}" method="post"
+                              action="/admin/products/tags/{{ row.tag.pk_tag_id }}">
+                          <button type="submit" class="btn-outline btn-sm">{{ t("common.save") }}</button>
+                        </form>
+                        <form method="post"
+                              action="/admin/products/tags/{{ row.tag.pk_tag_id }}/close"
+                              data-confirm="{{ t('catalog.confirm_retire_tag', name=row.tag.name_en, count=num(row.product_count)) }}">
+                          <button type="submit" class="btn-ghost btn-sm text-danger-600">
+                            {{ t("catalog.retire") }}
+                          </button>
+                        </form>
+                      </div>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="admin-panel__body">
+          {% with empty_icon = "list", empty_title = t("catalog.no_tags"),
+                  empty_body = t("catalog.no_tags_hint") %}
+            {% include "admin/partials/empty.html" %}
+          {% endwith %}
+        </div>
+      {% endif %}
+    </section>
+
+    {% if can_manage %}
+      <aside>
+        <section class="admin-panel">
+          <div class="admin-panel__head">
+            <h2 class="admin-panel__title">{{ t("catalog.new_tag") }}</h2>
+          </div>
+          <form method="post" action="/admin/products/tags" class="admin-panel__body space-y-3">
+            <div>
+              <label for="name_en" class="field-label field-required">{{ t("catalog.name_en") }}</label>
+              <input id="name_en" name="name_en" class="input" dir="ltr" required>
+            </div>
+            <div>
+              <label for="name_ar" class="field-label field-required">{{ t("catalog.name_ar") }}</label>
+              <input id="name_ar" name="name_ar" class="input" required>
+            </div>
+            <div>
+              <label for="slug" class="field-label">{{ t("catalog.slug") }}</label>
+              <input id="slug" name="slug" class="input" dir="ltr"
+                     placeholder="{{ t('catalog.slug_auto') }}">
+              <p class="field-hint">{{ t("catalog.slug_hint") }}</p>
+            </div>
+            <button type="submit" class="btn-primary btn-sm w-full">
+              {{ t("catalog.new_tag") }}
+            </button>
+          </form>
+        </section>
+      </aside>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

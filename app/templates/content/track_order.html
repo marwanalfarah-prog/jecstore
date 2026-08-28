@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("orders.track_title") }} - {{ t("site.name") }}{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <h1>{{ t("orders.track_title") }}</h1>
+
+  <form action="/orders/track" method="get" class="card mt-6 grid gap-4 p-5 lg:grid-cols-[1fr_1fr_auto]">
+    <div>
+      <label for="order_number" class="field-label">{{ t("orders.order_number") }}</label>
+      <input id="order_number" name="order_number" value="{{ order_number }}" class="input" required>
+    </div>
+    <div>
+      <label for="track_email" class="field-label">{{ t("auth.email") }}</label>
+      <input id="track_email" name="email" type="email" value="{{ email }}" class="input"
+             {% if not ctx.is_authenticated %}required{% endif %}>
+    </div>
+    <div class="flex items-end">
+      <button type="submit" class="btn-secondary btn-block">
+        {{ icon.package(class="h-4 w-4") }} {{ t("orders.track") }}
+      </button>
+    </div>
+  </form>
+
+  {% if order %}
+    <article class="card mt-6 p-5">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2>{{ order.order_number }}</h2>
+          <p class="mt-1 text-sm text-neutral-500">{{ datetime(order.placed_dt) }}</p>
+        </div>
+        <span class="badge-neutral">{{ t("orders.status_" ~ order.status) }}</span>
+      </div>
+
+      <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-3">
+        <div>
+          <dt class="text-neutral-500">{{ t("cart.total") }}</dt>
+          <dd class="price">{{ money(order.total_amt) }}</dd>
+        </div>
+        <div>
+          <dt class="text-neutral-500">{{ t("orders.payment_status") }}</dt>
+          <dd class="font-semibold text-neutral-800">{{ t("orders.payment_" ~ order.payment_status) }}</dd>
+        </div>
+        <div>
+          <dt class="text-neutral-500">{{ t("orders.items") }}</dt>
+          <dd class="font-semibold text-neutral-800">{{ num(order.lines|length) }}</dd>
+        </div>
+      </dl>
+    </article>
+  {% elif searched %}
+    <div class="state-panel mt-6">
+      {{ icon.receipt(class="h-10 w-10 text-neutral-300") }}
+      <p class="state-panel__title">{{ t("orders.not_found") }}</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

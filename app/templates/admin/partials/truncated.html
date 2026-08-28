@@ -1,0 +1,20 @@
+{# "There is more than this" — for a list the query deliberately capped.
+
+   Several admin reads stop at a fixed limit for the sake of Part II §2. Shown
+   without a word, a capped list is indistinguishable from a complete one, and
+   a member of staff counting stock or chasing an order reasonably assumes they
+   are looking at everything. Say it instead.
+
+   Usage:
+     {% with shown = rows | length, cap = row_limit %}
+       {% include "admin/partials/truncated.html" %}
+     {% endwith %}
+#}
+{% import "partials/icons.html" as icon %}
+
+{% if cap and shown >= cap %}
+  <p class="admin-note">
+    {{ icon.info(class="h-4 w-4 shrink-0") }}
+    <span>{{ t("listing.capped_at", count=num(cap)) }}</span>
+  </p>
+{% endif %}

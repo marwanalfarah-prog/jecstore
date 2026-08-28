@@ -1,0 +1,115 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.audit") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% with title = t("admin.audit"), subtitle = t("audit.purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ t("audit.log") }}</h2>
+    </div>
+    <form method="get" class="admin-panel__body admin-filters border-b border-neutral-200">
+    {% with owned = ["module", "action", "target_table", "actor", "page"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+      <div>
+        <label for="module" class="field-label">{{ t("audit.module") }}</label>
+        <select id="module" name="module" class="input h-9 min-h-0 py-0 text-sm">
+          <option value="">{{ t("listing.all") }}</option>
+          {% for option in module_options %}
+            <option value="{{ option }}" {% if request.query_params.get('module') == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="action" class="field-label">{{ t("audit.action") }}</label>
+        <select id="action" name="action" class="input h-9 min-h-0 py-0 text-sm">
+          <option value="">{{ t("listing.all") }}</option>
+          {% for option in action_options %}
+            <option value="{{ option }}" {% if request.query_params.get('action') == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="target_table" class="field-label">{{ t("audit.target_table") }}</label>
+        <select id="target_table" name="target_table" class="input h-9 min-h-0 py-0 text-sm">
+          <option value="">{{ t("listing.all") }}</option>
+          {% for option in table_options %}
+            <option value="{{ option }}" {% if request.query_params.get('target_table') == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="actor" class="field-label">{{ t("audit.actor") }}</label>
+        <input id="actor" name="actor" class="input h-9 min-h-0 py-0 text-sm"
+               value="{{ request.query_params.get('actor', '') }}">
+      </div>
+      <button type="submit" class="btn-secondary btn-sm">{{ t("listing.filters") }}</button>
+      <a href="/admin/audit" class="btn-ghost btn-sm">{{ t("listing.clear_filters") }}</a>
+    </form>
+
+    {% if entries %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.recorded") }}</th>
+              <th>{{ t("audit.actor") }}</th>
+              <th>{{ t("audit.action") }}</th>
+              <th>{{ t("audit.target") }}</th>
+              <th>{{ t("approvals.note") }}</th>
+              <th>{{ t("audit.fields") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in entries %}
+              <tr>
+                <td class="text-xs text-neutral-500">{{ datetime(entry.created_dt) }}</td>
+                <td>
+                  {{ entry.actor_username or "—" }}
+                  {% if entry.impersonator_user_id %}
+                    <span class="block badge-warning">{{ t("audit.impersonated") }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span dir="ltr">{{ entry.module_code }}.{{ entry.action_code }}</span>
+                </td>
+                <td class="text-xs text-neutral-500" dir="ltr">
+                  {{ entry.target_table or "—" }}{% if entry.target_row_id %} #{{ entry.target_row_id }}{% endif %}
+                </td>
+                <td class="max-w-sm text-xs text-neutral-500">{{ entry.note or "—" }}</td>
+                <td class="text-xs text-neutral-500">
+                  {% for field in entry.fields %}
+                    <span class="block" dir="ltr">
+                      {{ field.field_name }}: {{ field.old_value or "—" }} &rarr; {{ field.new_value or "—" }}
+                    </span>
+                  {% else %}
+                    <span>...</span>
+                  {% endfor %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% with shown = entries | length, cap = entry_limit %}
+        {% include "admin/partials/truncated.html" %}
+      {% endwith %}
+    {% else %}
+      <div class="admin-panel__body">
+        {% with empty_icon = "list", empty_title = t("audit.no_entries"),
+                empty_body = t("audit.no_entries_hint") %}
+          {% include "admin/partials/empty.html" %}
+        {% endwith %}
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

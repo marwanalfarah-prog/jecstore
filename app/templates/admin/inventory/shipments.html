@@ -1,0 +1,74 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.shipments") }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% with title = t("admin.shipments"), subtitle = t("inventory.shipments_purpose"),
+          back_href = "/admin/inventory", back_label = t("admin.inventory") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <div class="flex items-center gap-3">
+    <a href="/admin/inventory/shipments/new" class="btn-primary btn-sm ms-auto">
+      {{ icon.plus(class="h-4 w-4") }} {{ t("inventory.new_shipment") }}
+    </a>
+  </div>
+
+  <section class="admin-panel">
+    {% if shipments %}
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>{{ t("admin.reference") }}</th>
+              <th>{{ t("inventory.supplier") }}</th>
+              <th>{{ t("inventory.invoice_date") }}</th>
+              <th>{{ t("currency.label") }}</th>
+              <th>{{ t("inventory.invoice") }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in shipments %}
+              <tr>
+                <td>
+                  <a href="/admin/inventory/shipments/{{ s.pk_shipment_id }}"
+                     class="font-medium text-secondary-700 hover:underline" dir="ltr">
+                    {{ s.reference }}
+                  </a>
+                </td>
+                <td>{{ s.supplier_name or "—" }}</td>
+                <td class="text-xs text-neutral-500">{{ date(s.invoice_date) if s.invoice_date else "—" }}</td>
+                <td>{{ s.currency }}</td>
+                <td>
+                  {% if s.no_invoice_available_flag %}
+                    <span class="badge-warning">{{ t("inventory.no_invoice") }}</span>
+                  {% else %}
+                    <span class="badge-success">{{ t("inventory.attached") }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a href="/admin/inventory/labels?shipment={{ s.pk_shipment_id }}"
+                     target="_blank" rel="noopener" class="btn-outline btn-sm">
+                    {{ t("inventory.print_labels") }}
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="admin-panel__body">
+        <div class="state-panel border-0 bg-transparent py-8">
+          {{ icon.package(class="h-9 w-9 text-neutral-300") }}
+          <p class="state-panel__title">{{ t("listing.no_results") }}</p>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

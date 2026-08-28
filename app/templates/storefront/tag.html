@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{# Tag results page. Tags are clickable and lead here, rather than only feeding
+   the internal search index (Part I §15). #}
+
+{% block title %}{{ localized(tag) }} — {{ t("site.name") }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ settings.app_base_url }}{{ tag_url(tag) }}">{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+  <h1>{{ localized(tag) }}</h1>
+  <p class="mt-1 text-sm text-neutral-500">
+    {{ t("listing.results_count", count=num(products | length)) }}
+  </p>
+
+  <div class="mt-6">
+    {% include "partials/product_grid.html" %}
+  </div>
+</div>
+{% endblock %}

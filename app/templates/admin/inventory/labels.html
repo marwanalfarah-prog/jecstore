@@ -1,0 +1,61 @@
+{# Printable barcode label sheet (Part I §11).
+
+   Deliberately not wrapped in the admin chrome: this page goes straight to a
+   printer, and the sidebar would only waste paper. Barcodes are inline SVG so
+   they stay crisp at any label size.
+#}
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ t("inventory.labels") }}</title>
+  <link rel="stylesheet" href="{{ static('css/app.css') }}">
+  <style>
+    @page { margin: 8mm; }
+    .label-sheet {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4mm;
+    }
+    .label {
+      border: 1px dashed #d6d6d8;
+      padding: 3mm;
+      text-align: center;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .label svg { width: 100%; height: auto; }
+    @media print {
+      .no-print { display: none !important; }
+      .label { border-color: transparent; }
+    }
+  </style>
+</head>
+<body class="bg-white p-4">
+
+  <div class="no-print mb-4 flex flex-wrap items-center gap-3">
+    <button type="button" onclick="window.print()" class="btn-primary btn-sm">
+      {{ t("inventory.print") }}
+    </button>
+    <span class="text-sm text-neutral-500">
+      {{ t("inventory.label_count", count=num(labels | length)) }}
+    </span>
+  </div>
+
+  {% if labels %}
+    <div class="label-sheet">
+      {% for label in labels %}
+        <div class="label">
+          <p class="mb-1 truncate text-xs font-semibold">
+            {{ label.product_name_ar if lang == "ar" else label.product_name_en }}
+          </p>
+          {# Generated server-side by app/services/barcodes.py, never user input. #}
+          {{ label.svg | safe }}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-neutral-500">{{ t("listing.no_results") }}</p>
+  {% endif %}
+</body>
+</html>

@@ -1,0 +1,210 @@
+{# The three-tier header — the site's most recognisable signature (Part I §17.3).
+
+   Tier 1  crimson utility bar: language, currency, account and order tracking
+   Tier 2  white logo row: logo, site-wide search, cart summary
+   Tier 3  steel-blue mega-menu: main categories, on every page
+
+   On mobile the three tiers collapse to two: the utility bar keeps only the
+   language and currency toggles, and the category nav moves into a drawer —
+   but search and cart stay on screen, because §17.5 makes them persistent.
+#}
+{% import "partials/icons.html" as icon %}
+
+<header x-data="{ mobileNav: false, mobileSearch: false }" class="sticky top-0 z-40">
+
+  {# --- Tier 1: utility bar -------------------------------------------- #}
+  <div class="utility-bar">
+    <div class="container-site flex h-9 items-center justify-between gap-2 text-xs">
+
+      <div class="flex items-center gap-1">
+        {# Language toggle. Preserves the current path and query, so switching
+           language never bounces the shopper back to the homepage. #}
+        <a href="{{ url_with(lang=ctx.other_language) }}"
+           class="utility-bar__link"
+           hreflang="{{ ctx.other_language }}"
+           aria-label="{{ t('language.label') }}">
+          {{ icon.globe(class="h-3.5 w-3.5") }}
+          <span>{{ t("language." ~ ctx.other_language) }}</span>
+        </a>
+
+        {# Currency toggle. Display-only: prices are stored in JOD (§1.1). #}
+        <div class="flex items-center rounded bg-white/10 p-0.5">
+          {% for code in ["JOD", "USD"] %}
+            <a href="{{ url_with(currency=code) }}"
+               class="rounded px-2 py-0.5 text-xs font-semibold transition
+                      {% if currency == code %}bg-white text-primary-700{% else %}text-white/80 hover:text-white{% endif %}"
+               {% if currency == code %}aria-current="true"{% endif %}>
+              {{ t("currency." ~ code|lower) }}
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="hidden items-center gap-1 sm:flex">
+        <a href="/orders/track" class="utility-bar__link">
+          {{ icon.package(class="h-3.5 w-3.5") }}
+          <span>{{ t("header.track_order") }}</span>
+        </a>
+        {% if ctx.is_authenticated %}
+          <a href="/account" class="utility-bar__link">
+            {{ icon.user(class="h-3.5 w-3.5") }}
+            <span>{{ ctx.user.username }}</span>
+          </a>
+          <form method="post" action="/auth/logout" class="contents">
+            <button type="submit" class="utility-bar__link">
+              {{ icon.logout(class="h-3.5 w-3.5") }}
+              <span>{{ t("header.logout") }}</span>
+            </button>
+          </form>
+        {% else %}
+          <a href="/auth/login" class="utility-bar__link">
+            {{ icon.user(class="h-3.5 w-3.5") }}
+            <span>{{ t("header.login") }}</span>
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# --- Tier 2: logo, search, cart --------------------------------------- #}
+  <div class="border-b border-neutral-200 bg-white shadow-header">
+    <div class="container-site flex h-16 items-center gap-3 lg:h-20 lg:gap-6">
+
+      <button type="button"
+              class="btn-icon -ms-2 lg:hidden"
+              @click="mobileNav = true"
+              aria-label="{{ t('nav.menu') }}">
+        {{ icon.menu() }}
+      </button>
+
+      <a href="/" class="flex shrink-0 items-center gap-2.5" aria-label="{{ t('site.name') }}">
+        {% with class = "h-10 w-auto lg:h-12" %}{% include "partials/logo.html" %}{% endwith %}
+        <span class="hidden leading-tight sm:block">
+          <span class="block text-lg font-bold text-navy-900">{{ t("site.name") }}</span>
+          <span class="block text-2xs text-neutral-500">{{ t("site.tagline") }}</span>
+        </span>
+      </a>
+
+      {# Site-wide search. Arabic/English normalisation happens server side
+         (Part I §3.1, §15) — this is just the entry point. #}
+      <form action="/search" method="get"
+            class="hidden flex-1 lg:flex"
+            role="search">
+        <div class="relative flex w-full">
+          <input type="search" name="q"
+                 value="{{ request.query_params.get('q', '') }}"
+                 class="input rounded-e-none pe-3"
+                 placeholder="{{ t('header.search_placeholder') }}"
+                 aria-label="{{ t('header.search') }}"
+                 autocomplete="off"
+                 hx-get="/search/suggest"
+                 hx-trigger="keyup changed delay:250ms, search"
+                 hx-target="#search-suggestions"
+                 hx-swap="innerHTML">
+          <button type="submit"
+                  class="btn-secondary rounded-s-none px-5"
+                  aria-label="{{ t('header.search') }}">
+            {{ icon.search() }}
+          </button>
+          <div id="search-suggestions"
+               class="absolute inset-x-0 top-full z-50 mt-1 empty:hidden"></div>
+        </div>
+      </form>
+
+      <div class="ms-auto flex items-center gap-1">
+        <button type="button"
+                class="btn-icon lg:hidden"
+                @click="mobileSearch = !mobileSearch"
+                :aria-expanded="mobileSearch"
+                aria-label="{{ t('header.search') }}">
+          {{ icon.search() }}
+        </button>
+
+        {% include "partials/compare_indicator.html" %}
+
+        {% include "partials/wishlist_indicator.html" %}
+
+        {# Cart summary. `hx-swap-oob` targets this from add-to-cart responses,
+           so the count updates without a page reload. #}
+        {% include "partials/cart_indicator.html" %}
+      </div>
+    </div>
+
+    {# Mobile search, revealed inline rather than on a separate page. #}
+    <div x-show="mobileSearch" x-cloak x-transition class="border-t border-neutral-200 lg:hidden">
+      <form action="/search" method="get" class="container-site flex gap-2 py-3" role="search">
+        <input type="search" name="q" class="input flex-1"
+               placeholder="{{ t('header.search_placeholder') }}"
+               aria-label="{{ t('header.search') }}"
+               x-ref="mobileSearchInput"
+               x-effect="mobileSearch && $nextTick(() => $refs.mobileSearchInput.focus())">
+        <button type="submit" class="btn-secondary" aria-label="{{ t('header.search') }}">
+          {{ icon.search() }}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {# --- Tier 3: category mega-menu --------------------------------------- #}
+  <nav class="mega-nav hidden lg:block" aria-label="{{ t('nav.categories') }}">
+    <div class="container-site flex items-center">
+      <a href="/categories" class="mega-nav__link bg-secondary-700">
+        {{ icon.grid(class="h-4 w-4 me-2") }}
+        {{ t("nav.all_categories") }}
+      </a>
+      {% for category in ctx.main_categories | default([], true) %}
+        <a href="{{ category_url(category) }}" class="mega-nav__link">{{ localized(category) }}</a>
+      {% endfor %}
+      <a href="/branches" class="mega-nav__link ms-auto">
+        {{ icon.pin(class="h-4 w-4 me-1.5") }}
+        {{ t("nav.branches") }}
+      </a>
+    </div>
+  </nav>
+
+  {# --- Mobile navigation drawer ----------------------------------------- #}
+  <div x-show="mobileNav" x-cloak class="lg:hidden">
+    <div class="fixed inset-0 z-40 bg-navy-950/50"
+         x-show="mobileNav" x-transition.opacity
+         @click="mobileNav = false" aria-hidden="true"></div>
+
+    <div class="fixed inset-y-0 start-0 z-50 flex w-[85%] max-w-sm flex-col bg-white shadow-dropdown"
+         x-show="mobileNav"
+         x-transition:enter="transition duration-200 ease-out"
+         x-transition:enter-start="-translate-x-full rtl:translate-x-full"
+         x-transition:enter-end="translate-x-0"
+         x-transition:leave="transition duration-150 ease-in"
+         x-transition:leave-start="translate-x-0"
+         x-transition:leave-end="-translate-x-full rtl:translate-x-full"
+         @keydown.escape.window="mobileNav = false"
+         role="dialog" aria-modal="true" aria-label="{{ t('nav.menu') }}">
+
+      <div class="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
+        <span class="font-bold text-navy-900">{{ t("nav.menu") }}</span>
+        <button type="button" class="btn-icon -me-2" @click="mobileNav = false"
+                aria-label="{{ t('nav.close_menu') }}">
+          {{ icon.close() }}
+        </button>
+      </div>
+
+      <nav class="flex-1 overflow-y-auto py-2" aria-label="{{ t('nav.categories') }}">
+        {% for category in ctx.main_categories | default([], true) %}
+          <a href="{{ category_url(category) }}"
+             class="flex items-center justify-between px-4 py-3 text-base font-medium
+                    text-navy-900 hover:bg-neutral-100">
+            {{ localized(category) }}
+            {{ icon.chevron_forward(class="h-4 w-4 text-neutral-400") }}
+          </a>
+        {% endfor %}
+      </nav>
+
+      <div class="border-t border-neutral-200 p-4">
+        {% if ctx.is_authenticated %}
+          <a href="/account" class="btn-outline btn-block">{{ t("header.my_account") }}</a>
+        {% else %}
+          <a href="/auth/login" class="btn-primary btn-block">{{ t("header.login") }}</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</header>

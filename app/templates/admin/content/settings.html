@@ -1,0 +1,67 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{# Footer and storefront settings (Part I §3.2, §5.3).
+
+   Text settings take an AR/EN pair; flags are storewide toggles such as the
+   public view/purchase counters.
+#}
+
+{% block title %}{{ t("content.settings") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = t("content.settings"), subtitle = t("content.settings_purpose"),
+          back_href = "/admin/content", back_label = t("admin.content") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <form method="post" action="/admin/content/settings" class="space-y-4">
+    <section class="admin-panel">
+      <div class="admin-panel__head">
+        <h2 class="admin-panel__title">{{ t("content.settings") }}</h2>
+      </div>
+      <div class="admin-panel__body space-y-4">
+        {% for key, kind in setting_keys %}
+          {% set row = settings.get(key) %}
+          <div class="border-b border-neutral-100 pb-4 last:border-0 last:pb-0">
+            <p class="field-label">{{ t("content.setting_" ~ key) }}</p>
+
+            {% if kind == "flag" %}
+              <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="{{ key }}__flag" value="1"
+                       {% if row and row.value_flag %}checked{% endif %}
+                       class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+                {{ t("content.enabled") }}
+              </label>
+            {% else %}
+              <div class="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <label for="{{ key }}__ar" class="sr-only">{{ t("language.ar") }}</label>
+                  <input id="{{ key }}__ar" name="{{ key }}__ar" type="text"
+                         value="{{ row.value_text_ar if row and row.value_text_ar else '' }}"
+                         placeholder="{{ t('language.ar') }}"
+                         class="input h-9 min-h-0 py-0 text-sm">
+                </div>
+                <div>
+                  <label for="{{ key }}__en" class="sr-only">{{ t("language.en") }}</label>
+                  <input id="{{ key }}__en" name="{{ key }}__en" type="text" dir="ltr"
+                         value="{{ row.value_text_en if row and row.value_text_en else '' }}"
+                         placeholder="{{ t('language.en') }}"
+                         class="input h-9 min-h-0 py-0 text-sm">
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="admin-panel__body border-t border-neutral-200">
+        <button type="submit" class="btn-primary btn-sm">{{ t("common.save") }}</button>
+      </div>
+    </section>
+  </form>
+</div>
+{% endblock %}

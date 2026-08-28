@@ -1,0 +1,45 @@
+{# The wishlist heart, drawn in the state it is actually in (Part I §14).
+
+   This is a toggle, and it used to render identically whether the product was
+   saved or not — same outline heart, same "Add to wishlist" label, on a
+   product already on the list. A shopper had no way to tell, and a second
+   click silently removed the thing they thought they were adding.
+
+   So the button reports its own state three ways, because one is never enough:
+   a filled heart (glanceable), a changed label (readable), and `aria-pressed`
+   (announced by a screen reader, §17.7).
+
+   The id is what lets the POST swap this very button back in, so pressing it
+   updates the control as well as the header badge rather than leaving a stale
+   label behind.
+
+   Usage:
+     {% with product = product, compact = true %}
+       {% include "partials/wishlist_button.html" %}
+     {% endwith %}
+
+   `compact` gives the icon-only variant used on a product card; the default is
+   the labelled button on the product page.
+#}
+{% import "partials/icons.html" as icon %}
+{% set saved = product.pk_product_id in ctx.wishlisted_ids %}
+
+<button type="button"
+        id="wishlist-toggle-{{ product.pk_product_id }}"
+        hx-post="/account/wishlist/toggle"
+        hx-vals='{"product_id": {{ product.pk_product_id }}, "compact": {{ 'true' if compact | default(false) else 'false' }}}'
+        hx-swap="none"
+        aria-pressed="{{ 'true' if saved else 'false' }}"
+        {% if oob | default(false) %}hx-swap-oob="true"{% endif %}
+        {% if compact | default(false) %}
+          class="product-card__quick-action {% if saved %}product-card__quick-action--on{% endif %}"
+          aria-label="{{ t('product.remove_from_wishlist') if saved else t('product.add_to_wishlist') }}"
+          title="{{ t('product.remove_from_wishlist') if saved else t('product.add_to_wishlist') }}"
+        {% else %}
+          class="btn-outline btn-sm {% if saved %}text-primary-600{% endif %}"
+        {% endif %}>
+  {{ icon.heart(class="h-4 w-4", fill=saved) }}
+  {% if not compact | default(false) %}
+    {{ t("product.in_wishlist") if saved else t("product.add_to_wishlist") }}
+  {% endif %}
+</button>

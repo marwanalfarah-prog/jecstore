@@ -1,0 +1,79 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ t("admin.quick_search") }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-4">
+
+  {% with title = t("admin.quick_search"), subtitle = t("admin.quick_search_purpose") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  {# Repeated here rather than relying on the header's box: on a phone that box
+     is hidden, and this is the screen the header's search icon lands on. #}
+  <form method="get" action="/admin/search" class="admin-filters" role="search">
+    {% with owned = ["q"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+    <div class="flex-1">
+      <label for="q" class="field-label">{{ t("common.search") }}</label>
+      <input id="q" name="q" type="search" autofocus class="input w-full"
+             placeholder="{{ t('admin.quick_search_hint') }}" value="{{ query }}">
+    </div>
+    <button type="submit" class="btn-primary btn-sm">{{ t("common.search") }}</button>
+  </form>
+
+  {% if not query %}
+    {% with empty_icon = "search", empty_title = t("admin.quick_search_idle"),
+            empty_body = t("admin.quick_search_idle_hint") %}
+      {% include "admin/partials/empty.html" %}
+    {% endwith %}
+
+  {% elif not groups %}
+    {% with empty_icon = "search", empty_title = t("listing.no_results"),
+            empty_body = t("admin.quick_search_none", query=query) %}
+      {% include "admin/partials/empty.html" %}
+    {% endwith %}
+
+  {% else %}
+    {% for group in groups %}
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("admin." ~ group.key) }}</h2>
+          <span class="badge-neutral">{{ num(group.hits | length) }}</span>
+          {% if group.more_href %}
+            <a href="{{ group.more_href }}"
+               class="ms-auto text-xs font-semibold text-secondary-700 hover:underline">
+              {{ t("home.view_all") }}
+            </a>
+          {% endif %}
+        </div>
+        <ul class="divide-y divide-neutral-100">
+          {% for hit in group.hits %}
+            <li>
+              <a href="{{ hit.href }}"
+                 class="flex items-center gap-3 px-4 py-2.5 transition hover:bg-neutral-50">
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-medium text-navy-900"
+                        {% if group.key in ("orders", "inventory") %}dir="ltr"{% endif %}>
+                    {{ hit.title }}
+                  </span>
+                  {% if hit.detail %}
+                    <span class="block truncate text-xs text-neutral-500">{{ hit.detail }}</span>
+                  {% endif %}
+                </span>
+                {% if hit.badge %}
+                  <span class="badge-neutral shrink-0">{{ hit.badge }}</span>
+                {% endif %}
+                {{ icon.chevron_forward(class="h-4 w-4 shrink-0 text-neutral-300") }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ localized(category) }} — {{ t("site.name") }}{% endblock %}
+{% block meta_description %}{{ localized(category, "description") | truncate(160) }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ settings.app_base_url }}{{ category_url(category) }}">{% endblock %}
+
+{% block content %}
+<div class="container-site py-6 lg:py-8">
+
+  {# --- Breadcrumb --- #}
+  <nav aria-label="breadcrumb" class="mb-4">
+    <ol class="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
+      <li><a href="/" class="hover:text-primary-700">{{ t("nav.home") }}</a></li>
+      {% for ancestor in trail %}
+        <li aria-hidden="true">{{ icon.chevron_forward(class="h-3 w-3") }}</li>
+        <li><a href="{{ category_url(ancestor) }}" class="hover:text-primary-700">{{ localized(ancestor) }}</a></li>
+      {% endfor %}
+      <li aria-hidden="true">{{ icon.chevron_forward(class="h-3 w-3") }}</li>
+      <li><span class="font-medium text-navy-900" aria-current="page">{{ localized(category) }}</span></li>
+    </ol>
+  </nav>
+
+  <header class="mb-6">
+    <h1>{{ localized(category) }}</h1>
+    {% if localized(category, "description") %}
+      <p class="mt-2 max-w-2xl text-neutral-600">{{ localized(category, "description") }}</p>
+    {% endif %}
+  </header>
+
+  {# --- Child categories, their own section (Part I §5.1) --- #}
+  {% if children %}
+    <section class="mb-8">
+      {% with title = t("listing.subcategories") %}
+        {% include "partials/section_head.html" %}
+      {% endwith %}
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {% for child in children %}
+          <a href="{{ category_url(child) }}"
+             class="card flex items-center gap-3 p-3 transition hover:border-primary-200 hover:shadow-card-hover">
+            {% if child.image_path %}
+              <img src="{{ media(child.image_path) }}" alt="" class="h-10 w-10 shrink-0 object-contain" loading="lazy">
+            {% else %}
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-primary-50 text-primary-600">
+                {{ icon.grid(class="h-5 w-5") }}
+              </span>
+            {% endif %}
+            <span class="min-w-0 text-sm font-medium text-navy-900">{{ localized(child) }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {# --- Toolbar: sort, page size, view mode (Part I §5.1, §15) --------- #}
+  <div x-data="{ view: localStorage.getItem('jec.view') || 'grid' }"
+       class="mb-5 flex flex-wrap items-center gap-3 border-y border-neutral-200 py-3">
+
+    <p class="text-sm text-neutral-600">
+      {{ t("listing.results_count", count=num(total)) }}
+    </p>
+
+    <div class="ms-auto flex flex-wrap items-center gap-2">
+      {# Explicit named sort options, not a placeholder (Part I §15). #}
+      <label class="sr-only" for="sort">{{ t("listing.sort") }}</label>
+      <select id="sort" name="sort" class="input h-10 min-h-0 w-auto py-0 text-sm"
+              onchange="window.location = this.value">
+        {% for option in sort_options %}
+          <option value="{{ url_with(sort=option, page=None) }}" {% if option == sort %}selected{% endif %}>
+            {{ t("listing.sort_" ~ option) }}
+          </option>
+        {% endfor %}
+      </select>
+
+      {# Customer-facing items-per-page control (Part I §15). #}
+      <label class="sr-only" for="per-page">{{ t("listing.show") }}</label>
+      <select id="per-page" class="input h-10 min-h-0 w-auto py-0 text-sm"
+              onchange="window.location = this.value">
+        {% for size in page_sizes %}
+          <option value="{{ url_with(per_page=size, page=None) }}" {% if size == page_size %}selected{% endif %}>
+            {{ num(size) }}
+          </option>
+        {% endfor %}
+        <option value="{{ url_with(per_page='all', page=None) }}">{{ t("listing.all") }}</option>
+      </select>
+
+      {# Grid/list toggle, remembered across pages. #}
+      <div class="flex rounded-control border border-neutral-300 p-0.5" role="group"
+           aria-label="{{ t('listing.grid_view') }} / {{ t('listing.list_view') }}">
+        <button type="button" class="btn-icon h-9 w-9"
+                :class="view === 'grid' && 'bg-neutral-200 text-navy-900'"
+                @click="view = 'grid'; localStorage.setItem('jec.view','grid')"
+                :aria-pressed="view === 'grid'"
+                aria-label="{{ t('listing.grid_view') }}">{{ icon.grid(class="h-4 w-4") }}</button>
+        <button type="button" class="btn-icon h-9 w-9"
+                :class="view === 'list' && 'bg-neutral-200 text-navy-900'"
+                @click="view = 'list'; localStorage.setItem('jec.view','list')"
+                :aria-pressed="view === 'list'"
+                aria-label="{{ t('listing.list_view') }}">{{ icon.list(class="h-4 w-4") }}</button>
+      </div>
+    </div>
+  </div>
+
+  {% include "partials/product_grid.html" %}
+
+  {# --- Pagination ---------------------------------------------------- #}
+  {% if total_pages > 1 %}
+    <nav class="mt-8 flex items-center justify-center gap-1" aria-label="{{ t('listing.page') }}">
+      <a href="{{ url_with(page=page - 1) }}"
+         class="btn-outline btn-sm {% if page <= 1 %}pointer-events-none opacity-40{% endif %}"
+         {% if page <= 1 %}aria-disabled="true" tabindex="-1"{% endif %}>
+        {{ icon.chevron_back(class="h-4 w-4") }}
+        <span class="hidden sm:inline">{{ t("common.previous") }}</span>
+      </a>
+
+      {% for p in page_window %}
+        {% if p == page %}
+          <span class="btn-sm inline-flex min-w-10 items-center justify-center rounded-control
+                       bg-primary-600 font-semibold text-white" aria-current="page">{{ num(p) }}</span>
+        {% else %}
+          <a href="{{ url_with(page=p) }}"
+             class="btn-outline btn-sm min-w-10 justify-center">{{ num(p) }}</a>
+        {% endif %}
+      {% endfor %}
+
+      <a href="{{ url_with(page=page + 1) }}"
+         class="btn-outline btn-sm {% if page >= total_pages %}pointer-events-none opacity-40{% endif %}"
+         {% if page >= total_pages %}aria-disabled="true" tabindex="-1"{% endif %}>
+        <span class="hidden sm:inline">{{ t("common.next") }}</span>
+        {{ icon.chevron_forward(class="h-4 w-4") }}
+      </a>
+    </nav>
+  {% endif %}
+</div>
+{% endblock %}

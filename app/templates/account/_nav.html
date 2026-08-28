@@ -1,0 +1,35 @@
+{# Account section navigation (Part I §2.6).
+
+   One list, included by every account page, so a new page cannot end up
+   reachable only from wherever the developer happened to link it.
+#}
+{% import "partials/icons.html" as icon %}
+
+{% set items = [
+  ("/account",            "account.dashboard",  "user"),
+  ("/account/profile",    "account.profile",    "user"),
+  ("/account/orders",     "header.orders",      "receipt"),
+  ("/account/returns",    "returns.mine",       "package"),
+  ("/account/wishlist",   "header.wishlist",    "heart"),
+  ("/account/newsletter", "account.newsletter", "mail"),
+  ("/account/password",   "account.password",   "shield"),
+  ("/account/sessions",   "account.sessions",   "globe"),
+] %}
+
+<nav aria-label="{{ t('account.dashboard') }}" class="mb-6">
+  <ul class="flex flex-wrap gap-1.5">
+    {% for href, key, _ in items %}
+      {% set active = request.url.path == href %}
+      <li>
+        <a href="{{ href }}"
+           class="inline-flex items-center gap-1.5 rounded-control border px-3 py-1.5 text-sm
+                  transition {{ 'border-primary-600 bg-primary-50 font-semibold text-primary-700'
+                                if active else
+                                'border-neutral-200 text-neutral-600 hover:border-neutral-400' }}"
+           {% if active %}aria-current="page"{% endif %}>
+          {{ t(key) }}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+</nav>

@@ -1,0 +1,13 @@
+{% import "partials/icons.html" as icon %}
+<a href="/compare" id="compare-indicator"
+   {% if oob|default(false) %}hx-swap-oob="true"{% endif %}
+   class="btn-icon relative hidden sm:inline-flex"
+   aria-label="{{ t('header.compare') }}">
+  {{ icon.compare() }}
+  {% if ctx.compare_count %}
+    <span class="absolute -end-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center
+                 rounded-full bg-secondary-600 px-1 text-2xs font-bold text-white">
+      {{ num(ctx.compare_count) }}
+    </span>
+  {% endif %}
+</a>

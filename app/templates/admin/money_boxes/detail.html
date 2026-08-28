@@ -1,0 +1,265 @@
+{% extends "admin/base.html" %}
+{% import "partials/icons.html" as icon %}
+
+{% block title %}{{ localized(box) }}{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% include "admin/partials/flash.html" %}
+
+  {% with title = localized(box), subtitle = t("money.box_purpose"),
+          back_href = "/admin/money-boxes", back_label = t("admin.money_boxes") %}
+    {% include "admin/partials/page_header.html" %}
+  {% endwith %}
+
+  <section class="admin-panel">
+    <div class="admin-panel__head">
+      <h2 class="admin-panel__title">{{ localized(box) }}</h2>
+      <span class="badge-neutral" dir="ltr">{{ box.box_code }}</span>
+      {% if box.is_open_flag %}
+        <span class="badge-success">{{ t("money.open") }}</span>
+      {% else %}
+        <span class="badge-neutral">{{ t("money.closed") }}</span>
+      {% endif %}
+      {% if box.is_open_flag %}
+        <form method="post" action="/admin/money-boxes/{{ box.pk_money_box_id }}/close" class="ms-auto" data-confirm="{{ t('money.confirm_close_box') }}">
+          <button type="submit" class="btn-outline btn-sm">{{ t("money.close_box") }}</button>
+        </form>
+      {% endif %}
+    </div>
+    <div class="admin-panel__body">
+      <dl class="admin-dl sm:grid-cols-3">
+        <div>
+          <dt>{{ t("money.opening_balance") }}</dt>
+          <dd>{{ money(box.opening_balance_amt) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("money.balance") }}</dt>
+          <dd>{{ money(balance) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("admin.recorded") }}</dt>
+          <dd>{{ datetime(box.opened_dt) if box.opened_dt else "..." }}</dd>
+        </div>
+        {% if box.description %}
+          <div class="sm:col-span-3">
+            <dt>{{ t("money.description") }}</dt>
+            <dd class="font-normal text-neutral-600">{{ box.description }}</dd>
+          </div>
+        {% endif %}
+      </dl>
+    </div>
+  </section>
+
+  <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_26rem] xl:items-start">
+    <div class="space-y-4">
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("money.ledger") }}</h2>
+        </div>
+        <form method="get" class="admin-panel__body admin-filters border-b border-neutral-200">
+    {% with owned = ["start", "end", "page"] %}
+      {% include "admin/partials/filter_state.html" %}
+    {% endwith %}
+
+          <div>
+            <label for="start" class="field-label">{{ t("reports.start_date") }}</label>
+            <input id="start" name="start" type="date" class="input h-9 min-h-0 py-0 text-sm"
+                   value="{{ request.query_params.get('start', '') }}">
+          </div>
+          <div>
+            <label for="end" class="field-label">{{ t("reports.end_date") }}</label>
+            <input id="end" name="end" type="date" class="input h-9 min-h-0 py-0 text-sm"
+                   value="{{ request.query_params.get('end', '') }}">
+          </div>
+          <div>
+            <label for="reason" class="field-label">{{ t("money.reason") }}</label>
+            <select id="reason" name="reason" class="input h-9 min-h-0 py-0 text-sm">
+              <option value="">{{ t("listing.all") }}</option>
+              {% for reason in reasons %}
+                <option value="{{ reason }}" {% if request.query_params.get('reason') == reason %}selected{% endif %}>
+                  {{ t("money.reason_" ~ reason) }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn-secondary btn-sm">{{ t("listing.filters") }}</button>
+          <a href="/admin/money-boxes/{{ box.pk_money_box_id }}" class="btn-ghost btn-sm">{{ t("listing.clear_filters") }}</a>
+        </form>
+
+        {% if ledger %}
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>{{ t("admin.recorded") }}</th>
+                  <th>{{ t("admin.reference") }}</th>
+                  <th>{{ t("money.reason") }}</th>
+                  <th>{{ t("money.description") }}</th>
+                  <th class="num">{{ t("admin.amount") }}</th>
+                  <th class="num">{{ t("money.running_balance") }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in ledger %}
+                  <tr>
+                    <td class="text-xs text-neutral-500">{{ datetime(row.transaction.occurred_dt) }}</td>
+                    <td class="text-xs text-neutral-500" dir="ltr">{{ row.transaction.reference }}</td>
+                    <td>{{ t("money.reason_" ~ row.transaction.reason_code) }}</td>
+                    <td class="text-xs text-neutral-500">{{ row.transaction.description or "—" }}</td>
+                    <td class="num {% if row.allocation.amount_amt < 0 %}text-danger-600{% endif %}">
+                      {{ money(row.allocation.amount_amt) }}
+                    </td>
+                    <td class="num font-medium">{{ money(row.running_balance_amt) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="admin-panel__body">
+            <div class="state-panel border-0 bg-transparent py-8">
+              {{ icon.list(class="h-9 w-9 text-neutral-300") }}
+              <p class="state-panel__title">{{ t("money.no_transactions") }}</p>
+            </div>
+          </div>
+        {% endif %}
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("money.reconciliations") }}</h2>
+        </div>
+        {% if reconciliations %}
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>{{ t("admin.recorded") }}</th>
+                  <th class="num">{{ t("money.expected") }}</th>
+                  <th class="num">{{ t("money.counted") }}</th>
+                  <th class="num">{{ t("money.variance") }}</th>
+                  <th>{{ t("approvals.note") }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for reconciliation in reconciliations %}
+                  <tr>
+                    <td>{{ datetime(reconciliation.counted_dt) }}</td>
+                    <td class="num">{{ money(reconciliation.expected_amt) }}</td>
+                    <td class="num">{{ money(reconciliation.counted_amt) }}</td>
+                    <td class="num {% if reconciliation.variance_amt < 0 %}text-danger-600{% elif reconciliation.variance_amt > 0 %}text-success-700{% endif %}">
+                      {{ money(reconciliation.variance_amt) }}
+                    </td>
+                    <td class="text-xs text-neutral-500">{{ reconciliation.note or "—" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="admin-panel__body text-sm text-neutral-500">{{ t("money.no_reconciliations") }}</div>
+        {% endif %}
+      </section>
+    </div>
+
+    <aside class="space-y-4">
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("money.manual_transaction") }}</h2>
+        </div>
+        <form method="post" action="/admin/money-boxes/transaction"
+              class="admin-panel__body space-y-3"
+              x-data="{ rows: 2 }">
+          <input type="hidden" name="target_box_id" value="{{ box.pk_money_box_id }}">
+          <input type="hidden" name="allocation_count" value="2" :value="rows">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label for="direction" class="field-label">{{ t("money.direction") }}</label>
+              <select id="direction" name="direction" class="input">
+                {% for direction in directions %}
+                  <option value="{{ direction }}">{{ t("money.direction_" ~ direction) }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="reason_code" class="field-label">{{ t("money.reason") }}</label>
+              <select id="reason_code" name="reason_code" class="input">
+                {% for reason in reasons %}
+                  <option value="{{ reason }}" {% if reason == "other" %}selected{% endif %}>
+                    {{ t("money.reason_" ~ reason) }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="channel_id" class="field-label">{{ t("admin.channel") }}</label>
+              <select id="channel_id" name="channel_id" class="input">
+                <option value="">{{ t("listing.all") }}</option>
+                {% for channel in channels %}
+                  <option value="{{ channel.pk_payment_channel_id }}">{{ localized(channel) }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="occurred_date" class="field-label">{{ t("money.occurred_date") }}</label>
+              <input id="occurred_date" name="occurred_date" type="date" class="input">
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <p class="field-label">{{ t("money.allocations") }}</p>
+            <template x-for="i in rows" :key="i">
+              <div class="grid gap-2 sm:grid-cols-[1fr_8rem]">
+                <select :name="'allocation_box_id_' + i" class="input h-9 min-h-0 py-0 text-sm">
+                  {% for candidate in boxes %}
+                    <option value="{{ candidate.pk_money_box_id }}"
+                            :selected="i === 1 && {{ candidate.pk_money_box_id }} === {{ box.pk_money_box_id }}">
+                      {{ localized(candidate) }}
+                    </option>
+                  {% endfor %}
+                </select>
+                <input :name="'allocation_amount_amt_' + i" class="input h-9 min-h-0 py-0 text-sm"
+                       inputmode="decimal" dir="ltr" placeholder="{{ t('admin.amount') }}">
+              </div>
+            </template>
+            <button type="button" class="btn-ghost btn-sm" @click="rows = rows + 1">
+              {{ icon.plus(class="h-4 w-4") }} {{ t("money.add_allocation") }}
+            </button>
+          </div>
+
+          <div>
+            <label for="description" class="field-label">{{ t("money.description") }}</label>
+            <textarea id="description" name="description" rows="2" class="input"></textarea>
+          </div>
+          <button type="submit" class="btn-primary btn-sm">{{ t("money.record_transaction") }}</button>
+        </form>
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel__head">
+          <h2 class="admin-panel__title">{{ t("money.reconcile") }}</h2>
+        </div>
+        <form method="post" action="/admin/money-boxes/{{ box.pk_money_box_id }}/reconcile"
+              class="admin-panel__body space-y-3">
+          <div>
+            <label for="counted_amt" class="field-label">{{ t("money.counted") }}</label>
+            <input id="counted_amt" name="counted_amt" class="input" inputmode="decimal" required dir="ltr">
+          </div>
+          <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" name="adjust" value="1"
+                   class="rounded border-neutral-300 text-primary-600 focus:ring-secondary-600">
+            <span>{{ t("money.post_adjustment") }}</span>
+          </label>
+          <div>
+            <label for="note" class="field-label">{{ t("approvals.note") }}</label>
+            <textarea id="note" name="note" rows="2" class="input"></textarea>
+          </div>
+          <button type="submit" class="btn-primary btn-sm">{{ t("money.reconcile") }}</button>
+        </form>
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}
